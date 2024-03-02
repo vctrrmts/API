@@ -1,13 +1,11 @@
 ﻿using Todos.Domain;
-using Todos.Repositories;
 using Common.Repositories;
 using Common.Domain;
-using System.Runtime.ExceptionServices;
+using Common.Application;
 using System.Linq.Expressions;
 using Todos.Service.Dto;
+using Todos.Service.Models;
 using AutoMapper;
-using System.Security.Cryptography.X509Certificates;
-
 
 namespace Todos.Service
 {
@@ -23,18 +21,26 @@ namespace Todos.Service
             _toDoRepository = toDoRepository;
             _userRepository = userRepository;
             _mapper = mapper;
-            _toDoRepository.Add(new ToDo { Id = 1, Label = "todo1", OwnerId = 1, CreatedTime = DateTime.UtcNow });
-            _toDoRepository.Add(new ToDo { Id = 2, Label = "todo2", OwnerId = 2, CreatedTime = DateTime.UtcNow });
-            _toDoRepository.Add(new ToDo { Id = 3, Label = "todo3", OwnerId = 3, CreatedTime = DateTime.UtcNow });
-            _toDoRepository.Add(new ToDo { Id = 4, Label = "todo4", OwnerId = 1, CreatedTime = DateTime.UtcNow });
-            _toDoRepository.Add(new ToDo { Id = 5, Label = "todo5", OwnerId = 2, CreatedTime = DateTime.UtcNow, IsDone = true });
-            _toDoRepository.Add(new ToDo { Id = 6, Label = "todo6", OwnerId = 3, CreatedTime = DateTime.UtcNow, IsDone = true });
-            _toDoRepository.Add(new ToDo { Id = 7, Label = "todo7", OwnerId = 1, CreatedTime = DateTime.UtcNow, IsDone = true });
-            _toDoRepository.Add(new ToDo { Id = 8, Label = "todo8", OwnerId = 2, CreatedTime = DateTime.UtcNow, IsDone = true });
 
-            _userRepository.Add(new User() { Id = 1, Name = "Viktor" });
-            _userRepository.Add(new User() { Id = 2, Name = "Igor" });
-            _userRepository.Add(new User() { Id = 3, Name = "Gennadiy" });
+            if (_toDoRepository.GetList().Length == 0)
+            {
+                _toDoRepository.Add(new ToDo { Id = 1, Label = "todo1", OwnerId = 1, CreatedTime = DateTime.UtcNow });
+                _toDoRepository.Add(new ToDo { Id = 2, Label = "todo2", OwnerId = 2, CreatedTime = DateTime.UtcNow });
+                _toDoRepository.Add(new ToDo { Id = 3, Label = "todo3", OwnerId = 3, CreatedTime = DateTime.UtcNow });
+                _toDoRepository.Add(new ToDo { Id = 4, Label = "todo4", OwnerId = 1, CreatedTime = DateTime.UtcNow });
+                _toDoRepository.Add(new ToDo { Id = 5, Label = "todo5", OwnerId = 2, CreatedTime = DateTime.UtcNow, IsDone = true });
+                _toDoRepository.Add(new ToDo { Id = 6, Label = "todo6", OwnerId = 3, CreatedTime = DateTime.UtcNow, IsDone = true });
+                _toDoRepository.Add(new ToDo { Id = 7, Label = "todo7", OwnerId = 1, CreatedTime = DateTime.UtcNow, IsDone = true });
+                _toDoRepository.Add(new ToDo { Id = 8, Label = "todo8", OwnerId = 2, CreatedTime = DateTime.UtcNow, IsDone = true });
+            }
+
+            if (_userRepository.GetList().Length == 0)
+            {
+                _userRepository.Add(new User() { Id = 1, Name = "Viktor" });
+                _userRepository.Add(new User() { Id = 2, Name = "Igor" });
+                _userRepository.Add(new User() { Id = 3, Name = "Gennadiy" });
+            }
+
         }
 
         public IReadOnlyCollection<ToDo> GetList(int? offset, int? ownerId, string? labelFreeText, int? limit = 10)
@@ -54,7 +60,9 @@ namespace Todos.Service
 
         public ToDo? GetById(int id)
         {
-            return _toDoRepository.SingleOrDefault(x=>x.Id == id);
+            ToDo? todo = _toDoRepository.SingleOrDefault(x=>x.Id == id);
+            if (todo == null) throw new NotFoundException();
+            return todo;
         }
 
         public IsDoneResult? GetIsDone(int id)

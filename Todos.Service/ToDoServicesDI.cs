@@ -11,7 +11,7 @@ namespace Todos.Service
         public static IServiceCollection AddToDoServices(this IServiceCollection services)
         {
             services.AddAutoMapper(typeof(AutoMapperProfile));
-            services.AddSingleton<IToDoService, ToDoService>();
+            services.AddTransient<IToDoService, ToDoService>();
             services.AddTransient<IRepository<ToDo>, BaseRepository<ToDo>>();
             services.AddTransient<IRepository<User>, BaseRepository<User>>();
 

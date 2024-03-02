@@ -10,7 +10,7 @@ namespace Users.Service
         public static IServiceCollection AddUserServices(this IServiceCollection services)
         {
             services.AddAutoMapper(typeof(AutoMapperProfile));
-            services.AddSingleton<IUserService, UserService>();
+            services.AddTransient<IUserService, UserService>();
             services.AddTransient<IRepository<User>, BaseRepository<User>>();
 
             return services;

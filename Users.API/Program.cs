@@ -1,6 +1,3 @@
-
-using Common.Repositories;
-using Common.Domain;
 using Users.Service;
 
 namespace Users.API

@@ -1,13 +1,7 @@
 ﻿using AutoMapper;
 using Common.Domain;
 using Common.Repositories;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.ExceptionServices;
-using System.Text;
-using System.Threading.Tasks;
-using Todos.Domain;
+using Common.Application;
 using Users.Service.Dto;
 
 namespace Users.Service
@@ -20,9 +14,14 @@ namespace Users.Service
         {
             _userRepository = userRepository;
             _mapper = mapper;
-            _userRepository.Add(new User() { Id = 1, Name = "Viktor" });
-            _userRepository.Add(new User() { Id = 2, Name = "Igor" });
-            _userRepository.Add(new User() { Id = 3, Name = "Gennadiy" });
+
+            if(_userRepository.GetList().Length == 0)
+            {
+                _userRepository.Add(new User() { Id = 1, Name = "Viktor" });
+                _userRepository.Add(new User() { Id = 2, Name = "Igor" });
+                _userRepository.Add(new User() { Id = 3, Name = "Gennadiy" });
+            }
+
         }
 
         public IReadOnlyCollection<User> GetList(int? offset, string? labelFreeText, int? limit = 5)
@@ -35,7 +34,9 @@ namespace Users.Service
 
         public User? GetById(int id)
         {
-            return _userRepository.SingleOrDefault(x=>x.Id == id);
+            User? user = _userRepository.SingleOrDefault(x=>x.Id == id);
+            if(user == null) throw new NotFoundException();
+            return user;
         }
 
         public User Create(CreateUserDto userDto)

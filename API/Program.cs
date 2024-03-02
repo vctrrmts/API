@@ -1,8 +1,3 @@
-
-using Common.Repositories;
-using Common.Domain;
-using Todos.Domain;
-using Todos.Repositories;
 using Todos.Service;
 
 namespace API

@@ -9,7 +9,7 @@ namespace Common.Repositories
 {
     public class BaseRepository<TEntity> : IRepository<TEntity> where TEntity : class, new()
     {
-        private readonly List<TEntity> _data = [];
+        private static readonly List<TEntity> _data = [];
 
         public TEntity[] GetList(int? offset = null, int? limit = null, Expression<Func<TEntity, bool>>? predicate = null,
             Expression<Func<TEntity, object>>? orderBy = null,

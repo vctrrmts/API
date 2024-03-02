@@ -2,8 +2,8 @@
 using Todos.Domain;
 using Todos.Service;
 using Todos.Service.Dto;
-
-// For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+using Todos.Service.Models;
+using Common.Application;
 
 namespace Todos.API.Controllers
 {
@@ -31,10 +31,15 @@ namespace Todos.API.Controllers
         [HttpGet("{id}")]
         public IActionResult GetById(int id)
         {
-            var todo = _toDoService.GetById(id);
-
-            if (todo == null) return NotFound(id);
-            return Ok(todo);
+            try
+            {
+                var todo = _toDoService.GetById(id);
+                return Ok(todo);
+            }
+            catch (NotFoundException)
+            {
+                return NotFound(id);
+            }
         }
 
         [HttpGet("TotalCount")]
@@ -107,9 +112,15 @@ namespace Todos.API.Controllers
         [HttpDelete("{id}")]
         public IActionResult Delete(int id)
         {
-            if (!_toDoService.Delete(id)) return NotFound();
-            return Ok();
-            
+            try
+            {
+                _toDoService.Delete(id);
+                return Ok();
+            }
+            catch (NotFoundException)
+            {
+                return NotFound();
+            }          
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using Todos.Domain;
 using Todos.Service.Dto;
+using Todos.Service.Models;
 
 namespace Todos.Service
 {

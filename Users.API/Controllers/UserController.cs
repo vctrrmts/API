@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Common.Domain;
+using Common.Application;
 using Users.Service;
 using Users.Service.Dto;
 
@@ -29,10 +30,15 @@ namespace Users.API.Controllers
         [HttpGet("{id}")]
         public IActionResult GetById(int id)
         {
-            var user = _userService.GetById(id);
-
-            if (user == null) return NotFound(id);
-            return Ok(user);
+            try
+            {
+                var user = _userService.GetById(id);
+                return Ok(user);
+            }
+            catch (NotFoundException)
+            {
+                return NotFound(id);
+            }
         }
 
         [HttpGet("TotalCount")]
@@ -44,28 +50,49 @@ namespace Users.API.Controllers
         [HttpPost]
         public IActionResult Create([FromBody] CreateUserDto user)
         {
-            User newUser = _userService.Create(user);
+            try
+            {
+                User newUser = _userService.Create(user);
 
-            return Created("/users/" + newUser.Id, newUser);
+                return Created("/users/" + newUser.Id, newUser);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+
         }
 
         [HttpDelete("{id}")]
         public IActionResult Delete(int id)
         {
-            if (!_userService.Delete(id)) return NotFound();
-            return Ok();
-
+            try
+            {
+                _userService.Delete(id);
+                return Ok();
+            }
+            catch (NotFoundException)
+            {
+                return NotFound();
+            }
         }
 
         [HttpPut("{id}")]
         public IActionResult Update(int id, [FromBody] UpdateUserDto user)
         {
-            var updateResult = _userService.Update(id, user);
-            if (updateResult == null)
+            try
             {
-                return BadRequest();
+                var updateResult = _userService.Update(id, user);
+                return Ok(updateResult);
             }
-            return Ok(updateResult);
+            catch (NotFoundException)
+            {
+                return NotFound();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex);
+            }         
         }
     }
 }
