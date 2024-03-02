@@ -1,49 +1,78 @@
-﻿using Common.Domain;
+﻿using AutoMapper;
+using Common.Domain;
 using Common.Repositories;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading.Tasks;
+using Todos.Domain;
+using Users.Service.Dto;
 
 namespace Users.Service
 {
     public class UserService : IUserService
     {
-        private readonly IUserRepository _userRepository;
-        public UserService(IUserRepository userRepository)
+        private readonly IRepository<User> _userRepository;
+        private readonly IMapper _mapper;
+        public UserService(IRepository<User> userRepository, IMapper mapper)
         {
             _userRepository = userRepository;
+            _mapper = mapper;
+            _userRepository.Add(new User() { Id = 1, Name = "Viktor" });
+            _userRepository.Add(new User() { Id = 2, Name = "Igor" });
+            _userRepository.Add(new User() { Id = 3, Name = "Gennadiy" });
         }
 
-        public IReadOnlyCollection<User> GetList(int? offset, int limit)
+        public IReadOnlyCollection<User> GetList(int? offset, string? labelFreeText, int? limit = 5)
         {
-            return _userRepository.GetList(offset, limit);
+            return _userRepository.GetList(offset, 
+                limit, 
+                labelFreeText == null? null : x=>x.Name.Contains(labelFreeText, StringComparison.InvariantCultureIgnoreCase),
+                x=>x.Id);
         }
 
         public User? GetById(int id)
         {
-            return _userRepository.GetById(id);
+            return _userRepository.SingleOrDefault(x=>x.Id == id);
         }
 
-        public User Post(User user)
+        public User Create(CreateUserDto userDto)
         {
-            return _userRepository.Post(user);
+            if (string.IsNullOrWhiteSpace(userDto.Name))
+                throw new Exception("Name must not be empty");
+
+            User newUser = _mapper.Map<CreateUserDto, User>(userDto);
+            newUser.Id = _userRepository.GetList().Length == 0 ? 1 : _userRepository.GetList().Max(x=>x.Id);
+
+            return _userRepository.Add(newUser);
         }
 
-        public User? Patch(int id, string name)
+        public User? Update(int id, UpdateUserDto userDto)
         {
-            if (string.IsNullOrWhiteSpace(name)) throw new Exception("Name must not be empty");
-            if (_userRepository.GetById(id) == null) throw new Exception("Id does not exist");
+            if (string.IsNullOrWhiteSpace(userDto.Name))
+                throw new Exception("Name must not be empty");
 
-            return _userRepository.Patch(id, name);
+            User? user = _userRepository.SingleOrDefault(x => x.Id == id);
+            if (user == null) throw new NotFoundException();
+
+            _mapper.Map<UpdateUserDto, User>(userDto, user);
+
+            return _userRepository.Update(user);
         }
 
         public bool Delete(int id)
         {
-            User? user = _userRepository.GetById(id);
-            if (user == null) return false;
+            var user = _userRepository.SingleOrDefault(x=>x.Id == id);
+            if (user == null) throw new NotFoundException();
+
             return _userRepository.Delete(user);
+        }
+
+        public int GetCount(string? labelFreeText)
+        {
+            return _userRepository.Count(labelFreeText == null ? null : x => x.Name.Contains(labelFreeText, StringComparison.InvariantCultureIgnoreCase));
         }
     }
 }

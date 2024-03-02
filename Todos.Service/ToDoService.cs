@@ -1,83 +1,125 @@
 ﻿using Todos.Domain;
 using Todos.Repositories;
 using Common.Repositories;
+using Common.Domain;
+using System.Runtime.ExceptionServices;
+using System.Linq.Expressions;
+using Todos.Service.Dto;
+using AutoMapper;
+using System.Security.Cryptography.X509Certificates;
+
 
 namespace Todos.Service
 {
     public class ToDoService : IToDoService
     {
-        private readonly IToDoRepository _toDoRepository;
-        private readonly IUserRepository _userRepository;
+        private readonly IRepository<ToDo> _toDoRepository;
+        private readonly IRepository<User> _userRepository;
+        private readonly IMapper _mapper;
 
 
-        public ToDoService(IToDoRepository toDoRepository, IUserRepository userRepository)
+        public ToDoService(IRepository<ToDo> toDoRepository, IRepository<User> userRepository, IMapper mapper)
         {
             _toDoRepository = toDoRepository;
             _userRepository = userRepository;
+            _mapper = mapper;
+            _toDoRepository.Add(new ToDo { Id = 1, Label = "todo1", OwnerId = 1, CreatedTime = DateTime.UtcNow });
+            _toDoRepository.Add(new ToDo { Id = 2, Label = "todo2", OwnerId = 2, CreatedTime = DateTime.UtcNow });
+            _toDoRepository.Add(new ToDo { Id = 3, Label = "todo3", OwnerId = 3, CreatedTime = DateTime.UtcNow });
+            _toDoRepository.Add(new ToDo { Id = 4, Label = "todo4", OwnerId = 1, CreatedTime = DateTime.UtcNow });
+            _toDoRepository.Add(new ToDo { Id = 5, Label = "todo5", OwnerId = 2, CreatedTime = DateTime.UtcNow, IsDone = true });
+            _toDoRepository.Add(new ToDo { Id = 6, Label = "todo6", OwnerId = 3, CreatedTime = DateTime.UtcNow, IsDone = true });
+            _toDoRepository.Add(new ToDo { Id = 7, Label = "todo7", OwnerId = 1, CreatedTime = DateTime.UtcNow, IsDone = true });
+            _toDoRepository.Add(new ToDo { Id = 8, Label = "todo8", OwnerId = 2, CreatedTime = DateTime.UtcNow, IsDone = true });
+
+            _userRepository.Add(new User() { Id = 1, Name = "Viktor" });
+            _userRepository.Add(new User() { Id = 2, Name = "Igor" });
+            _userRepository.Add(new User() { Id = 3, Name = "Gennadiy" });
         }
 
-        public IReadOnlyCollection<ToDo> GetList(int? offset, int? ownerId, string? labelFreeText, int limit)
+        public IReadOnlyCollection<ToDo> GetList(int? offset, int? ownerId, string? labelFreeText, int? limit = 10)
         {
-            return _toDoRepository.GetList(offset, ownerId, labelFreeText, limit);
+            Expression<Func<ToDo, bool>>? expression = null;
+            if (ownerId != null)
+            {
+                if (!string.IsNullOrWhiteSpace(labelFreeText))
+                    expression = x => x.OwnerId == ownerId && x.Label.Contains(labelFreeText, StringComparison.InvariantCultureIgnoreCase);
+                else expression = x => x.OwnerId == ownerId;
+            }
+            else if(!string.IsNullOrWhiteSpace(labelFreeText)) 
+                expression = x=>x.Label.Contains(labelFreeText, StringComparison.InvariantCultureIgnoreCase);
+
+            return _toDoRepository.GetList(offset, limit, expression, x=>x.Id);
         }
 
         public ToDo? GetById(int id)
         {
-            return _toDoRepository.GetById(id);
+            return _toDoRepository.SingleOrDefault(x=>x.Id == id);
         }
 
         public IsDoneResult? GetIsDone(int id)
         {
-            ToDo? todo = _toDoRepository.GetById(id);
-            if (todo == null) return null;
+            ToDo? todo = _toDoRepository.SingleOrDefault(x=>x.Id == id);
+            if (todo == null) throw new NotFoundException();
 
             return new IsDoneResult() { Id = id, IsDone = todo.IsDone };
         }
 
-        public ToDo? Post( ToDo todo)
+        public ToDo Create( CreateToDoDto todoDto)
         {
-            if (_userRepository.GetById(todo.OwnerId) == null)
-            {
-                return null;
-            }
+            if (_userRepository.SingleOrDefault(x=>x.Id == todoDto.OwnerId) == null)
+                throw new Exception("Owner id does not exist");
 
-            ToDo newTodo = new ToDo
-            {
-                Label = todo.Label,
-                OwnerId = todo.OwnerId,
-                IsDone = todo.IsDone,
-                CreatedTime = DateTime.UtcNow
-            };
+            if (string.IsNullOrWhiteSpace(todoDto.Label))
+                throw new Exception("Label must not be empty");
 
-            return _toDoRepository.Post(newTodo);
+            int idNew = _toDoRepository.GetList().Length == 0 ? 1 : _toDoRepository.GetList().Max(x=>x.Id) + 1;
+
+            ToDo newTodo = _mapper.Map<CreateToDoDto, ToDo>(todoDto);
+            newTodo.Id = idNew;
+            newTodo.CreatedTime = DateTime.UtcNow;
+           
+            return _toDoRepository.Add(newTodo);
         }
 
-        public ToDo? Put(int id, ToDo todo)
+        public ToDo? Update(int id, UpdateToDoDto newTodo)
         {
-            ToDo? todoForUpdate = _toDoRepository.GetById(id);
-            if (todoForUpdate == null) return null;
+            if (_userRepository.SingleOrDefault(x => x.Id == newTodo.OwnerId) == null)
+                throw new Exception("Owner id does not exist");
 
-            var user = _userRepository.GetById(todo.OwnerId);
-            if (user == null)
-                throw new Exception($"OwnerId does not exist");
+            if (string.IsNullOrWhiteSpace(newTodo.Label))
+                throw new Exception("Label must not be empty");
 
-            return _toDoRepository.Put(todoForUpdate, todo);
+            ToDo? todoForUpdate = _toDoRepository.SingleOrDefault(x=>x.Id == id);
+            if (todoForUpdate == null) throw new NotFoundException();
+
+            _mapper.Map<UpdateToDoDto, ToDo>(newTodo, todoForUpdate);
+            todoForUpdate.UpdatedTime = DateTime.UtcNow;
+
+            return _toDoRepository.Update(todoForUpdate);
         }
 
         public IsDoneResult? Patch(int id, bool isDone)
         {
-            ToDo? todo = _toDoRepository.GetById(id);
-            if (todo == null) return null;
+            ToDo? todo = _toDoRepository.SingleOrDefault(x=>x.Id == id);
+            if (todo == null) throw new NotFoundException();
 
-            return _toDoRepository.Patch(todo, isDone);
+            todo.IsDone = isDone;
+            _toDoRepository.Update(todo);
+            return new IsDoneResult() {Id = todo.Id, IsDone = todo.IsDone };
         }
 
         public bool Delete(int id)
         {
-            ToDo? todoById = _toDoRepository.GetById(id);
-            if (todoById == null) return false;
+            ToDo? todoById = _toDoRepository.SingleOrDefault(x=>x.Id == id);
+            if (todoById == null) throw new NotFoundException();
 
             return _toDoRepository.Delete(todoById);
+        }
+
+        public int GetCount(string? labelFreeText)
+        {
+             return _toDoRepository.Count(labelFreeText == null ? null : x => x.Label.Contains(labelFreeText, StringComparison.InvariantCultureIgnoreCase));
         }
     }
 }

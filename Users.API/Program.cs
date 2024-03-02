@@ -1,5 +1,6 @@
 
 using Common.Repositories;
+using Common.Domain;
 using Users.Service;
 
 namespace Users.API
@@ -15,8 +16,7 @@ namespace Users.API
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddTransient<IUserService, UserService>();
-            builder.Services.AddTransient<IUserRepository, UserRepository>();
+            builder.Services.AddUserServices();
             builder.Services.AddSwaggerGen();
 
             var app = builder.Build();

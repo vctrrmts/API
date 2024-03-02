@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Common.Domain;
 using Users.Service;
+using Users.Service.Dto;
 
 namespace Users.API.Controllers
 {
@@ -17,9 +18,11 @@ namespace Users.API.Controllers
 
 
         [HttpGet]
-        public IActionResult GetList(int? offset, int limit = 5)
+        public IActionResult GetList(int? offset, int? limit, string? labelFreeText)
         {
-            var users = _userService.GetList(offset, limit);
+            var users = _userService.GetList(offset, labelFreeText, limit);
+            int totalCount = _userService.GetCount(labelFreeText);
+            HttpContext.Response.Headers.Append("X-Total-Count", totalCount.ToString());
             return Ok(users);
         }
 
@@ -32,10 +35,16 @@ namespace Users.API.Controllers
             return Ok(user);
         }
 
-        [HttpPost]
-        public IActionResult Post([FromBody] User user)
+        [HttpGet("TotalCount")]
+        public IActionResult GetCount(string? labelFreeText)
         {
-            User newUser = _userService.Post(user);
+            return Ok(_userService.GetCount(labelFreeText));
+        }
+
+        [HttpPost]
+        public IActionResult Create([FromBody] CreateUserDto user)
+        {
+            User newUser = _userService.Create(user);
 
             return Created("/users/" + newUser.Id, newUser);
         }
@@ -48,18 +57,15 @@ namespace Users.API.Controllers
 
         }
 
-        [HttpPatch("{id}/Name")]
-        public IActionResult Patch(int id, [FromBody] string name)
+        [HttpPut("{id}")]
+        public IActionResult Update(int id, [FromBody] UpdateUserDto user)
         {
-            try
+            var updateResult = _userService.Update(id, user);
+            if (updateResult == null)
             {
-                var changeNameResult = _userService.Patch(id, name);
-                return Ok(changeNameResult);
+                return BadRequest();
             }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            return Ok(updateResult);
         }
     }
 }

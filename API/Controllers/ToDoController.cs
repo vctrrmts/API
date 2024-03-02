@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Todos.Domain;
 using Todos.Service;
+using Todos.Service.Dto;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -22,6 +23,8 @@ namespace Todos.API.Controllers
         public IActionResult GetList(int? offset, int? ownerId, string? labelFreeText, int limit = 10)
         {
             var todos = _toDoService.GetList(offset, ownerId, labelFreeText, limit);
+            int totalCount = _toDoService.GetCount(labelFreeText);
+            HttpContext.Response.Headers.Append("X-Total-Count", totalCount.ToString());
             return Ok(todos);
         }
 
@@ -34,37 +37,51 @@ namespace Todos.API.Controllers
             return Ok(todo);
         }
 
+        [HttpGet("TotalCount")]
+        public IActionResult GetCount(string? labelFreeText)
+        {
+            return Ok(_toDoService.GetCount(labelFreeText));
+        }
+
         [HttpGet("{id}/IsDone")]
         public IActionResult GetIsDone(int id)
         {
-            var isdone = _toDoService.GetIsDone(id);
-
-            if (isdone == null) return NotFound(id);
-            return Ok(isdone);
+            try
+            {
+                var isdone = _toDoService.GetIsDone(id);
+                return Ok(isdone);
+            }
+            catch (NotFoundException)
+            {
+                return NotFound(id);
+            } 
         }
 
         [HttpPost]
-        public IActionResult Post([FromBody] ToDo todo)
+        public IActionResult Post([FromBody] CreateToDoDto todo)
         {
-            ToDo? newtodo = _toDoService.Post(todo);
-            if (newtodo == null)
+            try
             {
-                return BadRequest("OwnerId does not exist");
-            }
-            else
-            {
+                ToDo newtodo = _toDoService.Create(todo);
                 return Created("/todos/" + newtodo.Id, newtodo);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
             }
         }
 
         [HttpPut("{id}")]
-        public IActionResult Put(int id, [FromBody] ToDo todo)
+        public IActionResult Update(int id, [FromBody] UpdateToDoDto todo)
         {
             try
             {
-                var updatedTodo = _toDoService.Put(id, todo);
-                if (updatedTodo == null) return NotFound(id);
+                var updatedTodo = _toDoService.Update(id, todo);
                 return Ok(updatedTodo);
+            }
+            catch (NotFoundException)
+            {
+                return NotFound(id);
             }
             catch (Exception ex)
             {
@@ -76,9 +93,15 @@ namespace Todos.API.Controllers
         [HttpPatch("{id}/IsDone")]
         public IActionResult Patch(int id, [FromBody] bool isDone)
         {
-            var isDoneResult = _toDoService.Patch(id, isDone);
-            if (isDoneResult == null) return NotFound(id);
-            return Ok(isDoneResult);
+            try
+            {
+                var isDoneResult = _toDoService.Patch(id, isDone);
+                return Ok(isDoneResult);
+            }
+            catch (NotFoundException)
+            {
+                return NotFound(id);
+            }
         }
 
         [HttpDelete("{id}")]

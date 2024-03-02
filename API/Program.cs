@@ -1,5 +1,7 @@
 
 using Common.Repositories;
+using Common.Domain;
+using Todos.Domain;
 using Todos.Repositories;
 using Todos.Service;
 
@@ -16,9 +18,8 @@ namespace API
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddTransient<IToDoService, ToDoService>(); 
-            builder.Services.AddTransient<IToDoRepository, ToDoRepository>();
-            builder.Services.AddTransient<IUserRepository, UserRepository>();
+            builder.Services.AddToDoServices();
+
             builder.Services.AddSwaggerGen();
 
             var app = builder.Build();
