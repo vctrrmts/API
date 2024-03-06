@@ -6,6 +6,8 @@ using System.Linq.Expressions;
 using Todos.Service.Dto;
 using Todos.Service.Models;
 using AutoMapper;
+using Serilog;
+using System.Text.Json;
 
 namespace Todos.Service
 {
@@ -61,68 +63,109 @@ namespace Todos.Service
         public ToDo? GetById(int id)
         {
             ToDo? todo = _toDoRepository.SingleOrDefault(x=>x.Id == id);
-            if (todo == null) throw new NotFoundException();
+            if (todo == null)
+            {
+                Log.Error("ToDo not found");
+                throw new NotFoundException();
+            }
+
             return todo;
         }
 
         public IsDoneResult? GetIsDone(int id)
         {
             ToDo? todo = _toDoRepository.SingleOrDefault(x=>x.Id == id);
-            if (todo == null) throw new NotFoundException();
+            if (todo == null)
+            {
+                Log.Error("ToDo not found");
+                throw new NotFoundException();
+            }
 
             return new IsDoneResult() { Id = id, IsDone = todo.IsDone };
         }
 
-        public ToDo Create( CreateToDoDto todoDto)
+        public ToDo Create(CreateToDoDto todoDto)
         {
-            if (_userRepository.SingleOrDefault(x=>x.Id == todoDto.OwnerId) == null)
-                throw new Exception("Owner id does not exist");
+            if (_userRepository.SingleOrDefault(x => x.Id == todoDto.OwnerId) == null)
+            {
+                Log.Error($"Owner id {todoDto.OwnerId} does not exist");
+                throw new Exception($"Owner id {todoDto.OwnerId} does not exist");
+            }
 
             if (string.IsNullOrWhiteSpace(todoDto.Label))
+            {
+                Log.Error("Label must not be empty");
                 throw new Exception("Label must not be empty");
+            }
 
             int idNew = _toDoRepository.GetList().Length == 0 ? 1 : _toDoRepository.GetList().Max(x=>x.Id) + 1;
 
             ToDo newTodo = _mapper.Map<CreateToDoDto, ToDo>(todoDto);
             newTodo.Id = idNew;
             newTodo.CreatedTime = DateTime.UtcNow;
-           
-            return _toDoRepository.Add(newTodo);
+
+            _toDoRepository.Add(newTodo);
+            Log.Information("ToDo added " + JsonSerializer.Serialize(newTodo));
+            return newTodo;
         }
 
         public ToDo? Update(int id, UpdateToDoDto newTodo)
         {
             if (_userRepository.SingleOrDefault(x => x.Id == newTodo.OwnerId) == null)
-                throw new Exception("Owner id does not exist");
+            {
+                Log.Error($"Owner id {newTodo.OwnerId} does not exist");
+                throw new Exception($"Owner id {newTodo.OwnerId} does not exist");
+            }
 
             if (string.IsNullOrWhiteSpace(newTodo.Label))
+            {
+                Log.Error("Label must not be empty");
                 throw new Exception("Label must not be empty");
+            }
 
             ToDo? todoForUpdate = _toDoRepository.SingleOrDefault(x=>x.Id == id);
-            if (todoForUpdate == null) throw new NotFoundException();
+            if (todoForUpdate == null)
+            {
+                Log.Error("ToDo not found");
+                throw new NotFoundException();
+            }
 
             _mapper.Map<UpdateToDoDto, ToDo>(newTodo, todoForUpdate);
             todoForUpdate.UpdatedTime = DateTime.UtcNow;
 
-            return _toDoRepository.Update(todoForUpdate);
+            _toDoRepository.Update(todoForUpdate);
+            Log.Information("ToDo updated " + JsonSerializer.Serialize(todoForUpdate));
+            return todoForUpdate;
         }
 
         public IsDoneResult? Patch(int id, bool isDone)
         {
             ToDo? todo = _toDoRepository.SingleOrDefault(x=>x.Id == id);
-            if (todo == null) throw new NotFoundException();
+            if (todo == null)
+            {
+                Log.Error("ToDo not found");
+                throw new NotFoundException();
+            }
 
             todo.IsDone = isDone;
             _toDoRepository.Update(todo);
+
+            Log.Information("ToDo patched " + JsonSerializer.Serialize(todo));
             return new IsDoneResult() {Id = todo.Id, IsDone = todo.IsDone };
         }
 
         public bool Delete(int id)
         {
             ToDo? todoById = _toDoRepository.SingleOrDefault(x=>x.Id == id);
-            if (todoById == null) throw new NotFoundException();
+            if (todoById == null)
+            {
+                Log.Error("ToDo not found");
+                throw new NotFoundException();
+            }
 
-            return _toDoRepository.Delete(todoById);
+            _toDoRepository.Delete(todoById);
+            Log.Information("ToDo deleted " + JsonSerializer.Serialize(todoById));
+            return true;
         }
 
         public int GetCount(string? labelFreeText)

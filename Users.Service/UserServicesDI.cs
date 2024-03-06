@@ -2,6 +2,8 @@
 using Common.Domain;
 using Common.Repositories;
 using Users.Service.Mapping;
+using FluentValidation;
+using System.Reflection;
 
 namespace Users.Service
 {
@@ -12,6 +14,7 @@ namespace Users.Service
             services.AddAutoMapper(typeof(AutoMapperProfile));
             services.AddTransient<IUserService, UserService>();
             services.AddTransient<IRepository<User>, BaseRepository<User>>();
+            services.AddValidatorsFromAssemblies(new[] { Assembly.GetExecutingAssembly() }, includeInternalTypes: true);
 
             return services;
         }
