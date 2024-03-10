@@ -11,6 +11,7 @@ namespace Common.Repositories
             Expression<Func<TEntity, object>>? orderBy = null,
             bool? descending = null);
         TEntity? SingleOrDefault(Expression<Func<TEntity, bool>>? predicate = null);
+        Task<TEntity?> SingleOrDefaultAsync(Expression<Func<TEntity, bool>>? predicate, CancellationToken cancellationToken);
         int Count(Expression<Func<TEntity, bool>>? predicate = null);
         TEntity Add(TEntity entity);
         TEntity Update(TEntity entity);

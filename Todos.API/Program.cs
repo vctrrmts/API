@@ -2,6 +2,9 @@ using Serilog;
 using Serilog.Events;
 using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 using Todos.Service;
+using Common.Api;
+using Common.Repositories;
+using System.Text.Json.Serialization;
 
 namespace API
 {
@@ -21,10 +24,11 @@ namespace API
 
                 // Add services to the container.
 
-                builder.Services.AddControllers();
+                builder.Services.AddControllers().AddJsonOptions(x => x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
                 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
                 builder.Services.AddEndpointsApiExplorer();
                 builder.Services.AddToDoServices();
+                builder.Services.AddTodosDatabase(builder.Configuration);
                 builder.Services.AddSwaggerGen();
 
                 builder.Services.AddFluentValidationAutoValidation();
@@ -32,6 +36,8 @@ namespace API
                 builder.Host.UseSerilog();
 
                 var app = builder.Build();
+
+                app.UseExceptionsHandler();
 
                 // Configure the HTTP request pipeline.
                 if (app.Environment.IsDevelopment())

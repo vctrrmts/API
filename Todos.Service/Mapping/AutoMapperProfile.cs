@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Todos.Domain;
+using Common.Domain;
 using Todos.Service.Dto;
 
 namespace Todos.Service.Mapping
@@ -15,6 +15,7 @@ namespace Todos.Service.Mapping
         {
             CreateMap<CreateToDoDto, ToDo>();
             CreateMap<UpdateToDoDto, ToDo>();
+            CreateMap<ToDo, MainToDoDto>();
         }
 
     }

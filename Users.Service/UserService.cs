@@ -1,7 +1,7 @@
 ﻿using AutoMapper;
 using Common.Domain;
 using Common.Repositories;
-using Common.Application;
+using Common.Api.Exceptions;
 using Users.Service.Dto;
 using Serilog;
 using System.Text.Json;
@@ -26,27 +26,35 @@ namespace Users.Service
 
         }
 
-        public IReadOnlyCollection<User> GetList(int? offset, string? labelFreeText, int? limit = 5)
+        public IReadOnlyCollection<MainUserDto> GetList(int? offset, string? labelFreeText, int? limit = 5)
         {
-            return _userRepository.GetList(offset, 
+            User[] userList = _userRepository.GetList(offset, 
                 limit, 
-                labelFreeText == null? null : x=>x.Name.Contains(labelFreeText, StringComparison.InvariantCultureIgnoreCase),
+                labelFreeText == null? null : x=>x.Name.Contains(labelFreeText),
                 x=>x.Id);
-        }
 
-        public User? GetById(int id)
-        {
-            User? user = _userRepository.SingleOrDefault(x=>x.Id == id);
-            if (user == null)
+            MainUserDto[] mainUserList = new MainUserDto[userList.Length];
+            for (int i = 0; i < userList.Length; i++)
             {
-                Log.Error("User not found");
-                throw new NotFoundException();
+                mainUserList[i] = _mapper.Map<User, MainUserDto>(userList[i]);
             }
 
-            return user;
+            return mainUserList;
         }
 
-        public User Create(CreateUserDto userDto)
+        public async Task<MainUserDto> GetByIdAsync(int id, CancellationToken cancellationToken)
+        {
+            User? user = await _userRepository.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+            if (user == null)
+            {
+                Log.Error($"User with Id = {id} not found");
+                throw new NotFoundException($"User with Id = {id} not found");
+            }
+
+            return _mapper.Map<User, MainUserDto>(user);
+        }
+
+        public MainUserDto Create(CreateUserDto userDto)
         {
             if (string.IsNullOrWhiteSpace(userDto.Name))
             {
@@ -55,14 +63,13 @@ namespace Users.Service
             }
 
             User newUser = _mapper.Map<CreateUserDto, User>(userDto);
-            newUser.Id = _userRepository.GetList().Length == 0 ? 1 : _userRepository.GetList().Max(x=>x.Id) + 1;
 
             _userRepository.Add(newUser);
             Log.Information("User added " + JsonSerializer.Serialize(newUser));
-            return newUser;
+            return _mapper.Map<User, MainUserDto>(newUser);
         }
 
-        public User? Update(int id, UpdateUserDto userDto)
+        public MainUserDto Update(int id, UpdateUserDto userDto)
         {
             if (string.IsNullOrWhiteSpace(userDto.Name))
             {
@@ -73,24 +80,24 @@ namespace Users.Service
             User? user = _userRepository.SingleOrDefault(x => x.Id == id);
             if (user == null)
             {
-                Log.Error("User not found");
-                throw new NotFoundException();
+                Log.Error($"User with Id = {id} not found");
+                throw new NotFoundException($"User with Id = {id} not found");
             }
 
             _mapper.Map<UpdateUserDto, User>(userDto, user);
 
             _userRepository.Update(user);
             Log.Information("User updated " + JsonSerializer.Serialize(user));
-            return user;
+            return _mapper.Map<User, MainUserDto>(user);
         }
 
-        public bool Delete(int id)
+        public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken)
         {
-            var user = _userRepository.SingleOrDefault(x=>x.Id == id);
+            var user = await _userRepository.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
             if (user == null)
             {
-                Log.Error("User not found");
-                throw new NotFoundException();
+                Log.Error($"User with Id = {id} not found");
+                throw new NotFoundException($"User with Id = {id} not found");
             }
 
             _userRepository.Delete(user);
@@ -100,7 +107,7 @@ namespace Users.Service
 
         public int GetCount(string? labelFreeText)
         {
-            return _userRepository.Count(labelFreeText == null ? null : x => x.Name.Contains(labelFreeText, StringComparison.InvariantCultureIgnoreCase));
+            return _userRepository.Count(labelFreeText == null ? null : x => x.Name.Contains(labelFreeText));
         }
     }
 }

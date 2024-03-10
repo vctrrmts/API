@@ -1,9 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Todos.Domain;
+using Common.Domain;
 using Todos.Service;
 using Todos.Service.Dto;
 using Todos.Service.Models;
-using Common.Application;
 
 namespace Todos.API.Controllers
 {
@@ -29,17 +28,10 @@ namespace Todos.API.Controllers
         }
 
         [HttpGet("{id}")]
-        public IActionResult GetById(int id)
+        public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
         {
-            try
-            {
-                var todo = _toDoService.GetById(id);
-                return Ok(todo);
-            }
-            catch (NotFoundException)
-            {
-                return NotFound(id);
-            }
+            var todo = await _toDoService.GetByIdAsync(id, cancellationToken);
+            return Ok(todo);
         }
 
         [HttpGet("TotalCount")]
@@ -49,78 +41,39 @@ namespace Todos.API.Controllers
         }
 
         [HttpGet("{id}/IsDone")]
-        public IActionResult GetIsDone(int id)
+        public async Task<IActionResult> GetIsDoneAsync(int id, CancellationToken cancellationToken)
         {
-            try
-            {
-                var isdone = _toDoService.GetIsDone(id);
-                return Ok(isdone);
-            }
-            catch (NotFoundException)
-            {
-                return NotFound(id);
-            } 
+            var isdone = await _toDoService.GetIsDoneAsync(id, cancellationToken);
+            return Ok(isdone);
         }
 
         [HttpPost]
         public IActionResult Post([FromBody] CreateToDoDto todo)
         {
-            try
-            {
-                ToDo newtodo = _toDoService.Create(todo);
-                return Created("/todos/" + newtodo.Id, newtodo);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var newtodo = _toDoService.Create(todo);
+            return Created("/todos/" + newtodo.Id, newtodo);
         }
 
         [HttpPut("{id}")]
         public IActionResult Update(int id, [FromBody] UpdateToDoDto todo)
         {
-            try
-            {
-                var updatedTodo = _toDoService.Update(id, todo);
-                return Ok(updatedTodo);
-            }
-            catch (NotFoundException)
-            {
-                return NotFound(id);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var updatedTodo = _toDoService.Update(id, todo);
+            return Ok(updatedTodo);
 
         }
 
         [HttpPatch("{id}/IsDone")]
         public IActionResult Patch(int id, [FromBody] bool isDone)
         {
-            try
-            {
-                var isDoneResult = _toDoService.Patch(id, isDone);
-                return Ok(isDoneResult);
-            }
-            catch (NotFoundException)
-            {
-                return NotFound(id);
-            }
+            var isDoneResult = _toDoService.Patch(id, isDone);
+            return Ok(isDoneResult);
         }
 
         [HttpDelete("{id}")]
-        public IActionResult Delete(int id)
+        public async Task<IActionResult> DeleteAsync(int id, CancellationToken cancellationToken)
         {
-            try
-            {
-                _toDoService.Delete(id);
-                return Ok();
-            }
-            catch (NotFoundException)
-            {
-                return NotFound();
-            }          
+            await _toDoService.DeleteAsync(id, cancellationToken);
+            return Ok();
         }
     }
 }

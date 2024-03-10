@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Common.Domain;
-using Common.Application;
+using Common.Api.Exceptions;
 using Users.Service;
 using Users.Service.Dto;
 
@@ -28,17 +28,10 @@ namespace Users.API.Controllers
         }
 
         [HttpGet("{id}")]
-        public IActionResult GetById(int id)
+        public async Task<IActionResult> GetByIdAsync(int id, CancellationToken cancellationToken)
         {
-            try
-            {
-                var user = _userService.GetById(id);
-                return Ok(user);
-            }
-            catch (NotFoundException)
-            {
-                return NotFound(id);
-            }
+            var user = await _userService.GetByIdAsync(id, cancellationToken);
+            return Ok(user);
         }
 
         [HttpGet("TotalCount")]
@@ -50,49 +43,22 @@ namespace Users.API.Controllers
         [HttpPost]
         public IActionResult Create([FromBody] CreateUserDto user)
         {
-            try
-            {
-                User newUser = _userService.Create(user);
-
-                return Created("/users/" + newUser.Id, newUser);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-
+            var newUser = _userService.Create(user);
+            return Created("/users/" + newUser.Id, newUser);
         }
 
         [HttpDelete("{id}")]
-        public IActionResult Delete(int id)
+        public async Task<IActionResult> DeleteAsync(int id, CancellationToken cancellationToken)
         {
-            try
-            {
-                _userService.Delete(id);
-                return Ok();
-            }
-            catch (NotFoundException)
-            {
-                return NotFound();
-            }
+            await _userService.DeleteAsync(id, cancellationToken);
+            return Ok();
         }
 
         [HttpPut("{id}")]
         public IActionResult Update(int id, [FromBody] UpdateUserDto user)
         {
-            try
-            {
-                var updateResult = _userService.Update(id, user);
-                return Ok(updateResult);
-            }
-            catch (NotFoundException)
-            {
-                return NotFound();
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex);
-            }         
+            var updateResult = _userService.Update(id, user);
+            return Ok(updateResult);
         }
     }
 }
