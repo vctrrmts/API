@@ -80,7 +80,7 @@ namespace Users.Service
             var currentUserRoles = await _userRolesRepository.GetListAsync(
                 expression: x => x.ApplicationUserId == currentUserId,
                 cancellationToken: cancellationToken);
-            if (!currentUserRoles.Any(t => t.ApplicationUserRoleId == 1) && currentUserId != id)
+            if (!currentUserRoles.Any(t => t.ApplicationUserRole.Name == "Admin") && currentUserId != id)
             {
                 throw new ForbiddenException();
             }
@@ -111,7 +111,7 @@ namespace Users.Service
             var currentUserRoles = await _userRolesRepository.GetListAsync(
                 expression: x => x.ApplicationUserId == currentUserId,
                 cancellationToken: cancellationToken);
-            if (!currentUserRoles.Any(t => t.ApplicationUserRoleId == 1) && currentUserId != id)
+            if (!currentUserRoles.Any(t => t.ApplicationUserRole.Name == "Admin") && currentUserId != id)
             {
                 throw new ForbiddenException();
             }
@@ -134,7 +134,7 @@ namespace Users.Service
             var currentUserRoles = await _userRolesRepository.GetListAsync(
                 expression: x => x.ApplicationUserId == currentUserId,
                 cancellationToken: cancellationToken);
-            if (!currentUserRoles.Any(t => t.ApplicationUserRoleId == 1))
+            if (!currentUserRoles.Any(t => t.ApplicationUserRole.Name == "Admin"))
             {
                 throw new ForbiddenException();
             }

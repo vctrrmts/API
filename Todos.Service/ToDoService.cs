@@ -33,7 +33,7 @@ namespace Todos.Service
                 expression: x => x.ApplicationUserId == currentUserId,
                 cancellationToken: cancellationToken);
 
-            bool isCurrentUserAdmin = currentUserRoles.Any(t => t.ApplicationUserRoleId == 1);
+            bool isCurrentUserAdmin = currentUserRoles.Any(t => t.ApplicationUserRole.Name == "Admin");
 
             var todoList = await _toDoRepository.GetListAsync(
                 offset, 
@@ -59,7 +59,7 @@ namespace Todos.Service
             var currentUserRoles = await _rolesRepository.GetListAsync(
                 expression: x => x.ApplicationUserId == currentUserId,
                 cancellationToken: cancellationToken);
-            if (!currentUserRoles.Any(t => t.ApplicationUserRoleId == 1) && currentUserId != todo.OwnerId)
+            if (!currentUserRoles.Any(t => t.ApplicationUserRole.Name == "Admin") && currentUserId != todo.OwnerId)
             {
                 throw new ForbiddenException();
             }
@@ -79,7 +79,7 @@ namespace Todos.Service
             var currentUserRoles = await _rolesRepository.GetListAsync(
                 expression: x => x.ApplicationUserId == currentUserId,
                 cancellationToken: cancellationToken);
-            if (!currentUserRoles.Any(t => t.ApplicationUserRoleId == 1) && currentUserId != todo.OwnerId)
+            if (!currentUserRoles.Any(t => t.ApplicationUserRole.Name == "Admin") && currentUserId != todo.OwnerId)
             {
                 throw new ForbiddenException();
             }
@@ -112,7 +112,7 @@ namespace Todos.Service
             var currentUserRoles = await _rolesRepository.GetListAsync(
                 expression: x => x.ApplicationUserId == currentUserId,
                 cancellationToken: cancellationToken);
-            if (!currentUserRoles.Any(t => t.ApplicationUserRoleId == 1) && currentUserId != todoForUpdate.OwnerId)
+            if (!currentUserRoles.Any(t => t.ApplicationUserRole.Name == "Admin") && currentUserId != todoForUpdate.OwnerId)
             {
                 throw new ForbiddenException();
             }
@@ -139,7 +139,7 @@ namespace Todos.Service
             var currentUserRoles = await _rolesRepository.GetListAsync(
                 expression: x => x.ApplicationUserId == currentUserId,
                 cancellationToken: cancellationToken);
-            if (!currentUserRoles.Any(t => t.ApplicationUserRoleId == 1) && currentUserId != todo.OwnerId)
+            if (!currentUserRoles.Any(t => t.ApplicationUserRole.Name == "Admin") && currentUserId != todo.OwnerId)
             {
                 throw new ForbiddenException();
             }
@@ -163,7 +163,7 @@ namespace Todos.Service
             var currentUserRoles = await _rolesRepository.GetListAsync(
                 expression: x => x.ApplicationUserId == currentUserId,
                 cancellationToken: cancellationToken);
-            if (!currentUserRoles.Any(t => t.ApplicationUserRoleId == 1) && currentUserId != todoById.OwnerId)
+            if (!currentUserRoles.Any(t => t.ApplicationUserRole.Name == "Admin") && currentUserId != todoById.OwnerId)
             {
                 throw new ForbiddenException();
             }
@@ -179,7 +179,7 @@ namespace Todos.Service
                 expression: x => x.ApplicationUserId == currentUserId,
                 cancellationToken: cancellationToken);
 
-            bool isCurrentUserAdmin = currentUserRoles.Any(t => t.ApplicationUserRoleId == 1);
+            bool isCurrentUserAdmin = currentUserRoles.Any(t => t.ApplicationUserRole.Name == "Admin");
 
             return await _toDoRepository.CountAsync(
                 t => (string.IsNullOrWhiteSpace(labelFreeText) || t.Label.Contains(labelFreeText, StringComparison.InvariantCultureIgnoreCase))
