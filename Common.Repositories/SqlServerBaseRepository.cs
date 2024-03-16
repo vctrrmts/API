@@ -1,4 +1,5 @@
-﻿using System.Linq.Expressions;
+﻿using System;
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 
 namespace Common.Repositories;
@@ -12,14 +13,17 @@ public class SqlServerBaseRepository<TEntity> : IRepository<TEntity> where TEnti
         _applicationDbContext = applicationDbContext;
     }
 
-    public TEntity[] GetList(int? offset = null, int? limit = null, Expression<Func<TEntity, bool>>? predicate = null, Expression<Func<TEntity, object>>? orderBy = null,
-        bool? descending = null)
+    public async Task<TEntity[]> GetListAsync(int? offset = null, int? limit = null, List<Expression<Func<TEntity, bool>>>? predicates = null, 
+        Expression<Func<TEntity, object>>? orderBy = null, bool? descending = null, CancellationToken cancellationToken = default)
     {
         var queryable = _applicationDbContext.Set<TEntity>().AsQueryable();
 
-        if (predicate is not null)
+        if (predicates is not null)
         {
-            queryable = queryable.Where(predicate);
+            foreach (var expression in predicates)
+            {
+                queryable = queryable.Where(expression);
+            }
         }
 
         if (orderBy is not null)
@@ -37,13 +41,7 @@ public class SqlServerBaseRepository<TEntity> : IRepository<TEntity> where TEnti
             queryable = queryable.Take(limit.Value);
         }
 
-        return queryable.ToArray();
-    }
-
-    public TEntity? SingleOrDefault(Expression<Func<TEntity, bool>>? predicate = null)
-    {
-        var set = _applicationDbContext.Set<TEntity>();
-        return predicate == null ? set.SingleOrDefault() : set.SingleOrDefault(predicate);
+        return await queryable.ToArrayAsync(cancellationToken);
     }
 
     public async Task<TEntity?> SingleOrDefaultAsync(Expression<Func<TEntity, bool>>? predicate = null, CancellationToken cancellationToken = default)
@@ -52,32 +50,46 @@ public class SqlServerBaseRepository<TEntity> : IRepository<TEntity> where TEnti
         return predicate == null ? await set.SingleOrDefaultAsync(cancellationToken) : await set.SingleOrDefaultAsync(predicate, cancellationToken);
     }
 
-    public int Count(Expression<Func<TEntity, bool>>? predicate = null)
+    public async Task<TEntity> SingleAsync(Expression<Func<TEntity, bool>>? predicate, CancellationToken cancellationToken = default)
     {
         var set = _applicationDbContext.Set<TEntity>();
-        return predicate == null ? set.Count() : set.Count(predicate);
+        return predicate == null ? await set.SingleAsync(cancellationToken) : await set.SingleAsync(predicate, cancellationToken);
     }
 
-    public TEntity Add(TEntity book)
+    public async Task<int> CountAsync(List<Expression<Func<TEntity, bool>>>? predicates = null, CancellationToken cancellationToken = default)
+    {
+        var queryable = _applicationDbContext.Set<TEntity>().AsQueryable();
+
+        if (predicates is not null)
+        {
+            foreach (var expression in predicates)
+            {
+                queryable = queryable.Where(expression);
+            }
+        }
+        return  await queryable.CountAsync(cancellationToken);
+    }
+
+    public async Task<TEntity> AddAsync(TEntity book, CancellationToken cancellationToken = default)
     {
         var set = _applicationDbContext.Set<TEntity>();
-        set.Add(book);
-        _applicationDbContext.SaveChanges();
+        await set.AddAsync(book, cancellationToken);
+        await _applicationDbContext.SaveChangesAsync(cancellationToken);
         return book;
     }
 
-    public TEntity Update(TEntity book)
+    public async Task<TEntity> UpdateAsync(TEntity book, CancellationToken cancellationToken = default)
     {
         var set = _applicationDbContext.Set<TEntity>();
         set.Update(book);
-        _applicationDbContext.SaveChanges();
+        await _applicationDbContext.SaveChangesAsync(cancellationToken);
         return book;
     }
 
-    public bool Delete(TEntity book)
+    public async Task<bool> DeleteAsync(TEntity book, CancellationToken cancellationToken = default)
     {
         var set = _applicationDbContext.Set<TEntity>();
         set.Remove(book);
-        return _applicationDbContext.SaveChanges() > 0;
+        return await _applicationDbContext.SaveChangesAsync(cancellationToken) > 0;
     }
 }

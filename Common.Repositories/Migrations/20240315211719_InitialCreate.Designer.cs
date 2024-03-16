@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Common.Repositories.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20240309214918_InitialCreate")]
+    [Migration("20240315211719_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -20,7 +20,7 @@ namespace Common.Repositories.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.2")
+                .HasAnnotation("ProductVersion", "8.0.3")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -65,6 +65,36 @@ namespace Common.Repositories.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Login")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("UserRoleId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Login")
+                        .IsUnique();
+
+                    b.HasIndex("UserRoleId");
+
+                    b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("Common.Domain.UserRole", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -72,13 +102,13 @@ namespace Common.Repositories.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users");
+                    b.ToTable("UserRoles");
                 });
 
             modelBuilder.Entity("Common.Domain.ToDo", b =>
                 {
                     b.HasOne("Common.Domain.User", "User")
-                        .WithMany("ToDo")
+                        .WithMany("ToDos")
                         .HasForeignKey("OwnerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -88,7 +118,23 @@ namespace Common.Repositories.Migrations
 
             modelBuilder.Entity("Common.Domain.User", b =>
                 {
-                    b.Navigation("ToDo");
+                    b.HasOne("Common.Domain.UserRole", "UserRole")
+                        .WithMany("Users")
+                        .HasForeignKey("UserRoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("UserRole");
+                });
+
+            modelBuilder.Entity("Common.Domain.User", b =>
+                {
+                    b.Navigation("ToDos");
+                });
+
+            modelBuilder.Entity("Common.Domain.UserRole", b =>
+                {
+                    b.Navigation("Users");
                 });
 #pragma warning restore 612, 618
         }

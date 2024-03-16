@@ -2,6 +2,6 @@
 {
     public class UpdateUserDto
     {
-        public string Name { get; set; } = default!;
+        public string Login { get; set; } = default!;
     }
 }

@@ -22,63 +22,34 @@ namespace Todos.Service
             _toDoRepository = toDoRepository;
             _userRepository = userRepository;
             _mapper = mapper;
-
-            if (_userRepository.GetList().Length == 0)
-            {
-                _userRepository.Add(new User() { Name = "Viktor" });
-                _userRepository.Add(new User() { Name = "Igor" });
-                _userRepository.Add(new User() { Name = "Gennadiy" });
-            }
-
-            if (_toDoRepository.GetList().Length == 0)
-            {
-                _toDoRepository.Add(new ToDo { Label = "todo1", OwnerId = 1, CreatedTime = DateTime.UtcNow });
-                _toDoRepository.Add(new ToDo { Label = "todo2", OwnerId = 2, CreatedTime = DateTime.UtcNow });
-                _toDoRepository.Add(new ToDo { Label = "todo3", OwnerId = 3, CreatedTime = DateTime.UtcNow });
-                _toDoRepository.Add(new ToDo { Label = "todo4", OwnerId = 1, CreatedTime = DateTime.UtcNow });
-                _toDoRepository.Add(new ToDo { Label = "todo5", OwnerId = 2, CreatedTime = DateTime.UtcNow, IsDone = true });
-                _toDoRepository.Add(new ToDo { Label = "todo6", OwnerId = 3, CreatedTime = DateTime.UtcNow, IsDone = true });
-                _toDoRepository.Add(new ToDo { Label = "todo7", OwnerId = 1, CreatedTime = DateTime.UtcNow, IsDone = true });
-                _toDoRepository.Add(new ToDo { Label = "todo8", OwnerId = 2, CreatedTime = DateTime.UtcNow, IsDone = true });
-            }
-
         }
 
-        public IReadOnlyCollection<MainToDoDto> GetList(int? offset, int? ownerId, string? labelFreeText, int? limit = 10)
+        public async Task<IReadOnlyCollection<GetToDoDto>> GetListAsync(int currentUserId, int? offset, int? ownerId, 
+            string? labelFreeText, int? limit = 10, CancellationToken cancellationToken = default)
         {
-            Expression<Func<ToDo, bool>>? expression = null;
+            var currentUser = await _userRepository.SingleAsync(u => u.Id == currentUserId, cancellationToken);
+
+            var expressions = new List<Expression<Func<ToDo, bool>>>();
             if (ownerId != null)
             {
-                if (!string.IsNullOrWhiteSpace(labelFreeText))
-                    expression = x => x.OwnerId == ownerId && x.Label.Contains(labelFreeText);
-                else expression = x => x.OwnerId == ownerId;
+                expressions.Add(x => x.OwnerId == ownerId);
             }
-            else if(!string.IsNullOrWhiteSpace(labelFreeText)) 
-                expression = x=>x.Label.Contains(labelFreeText);
 
-            ToDo[] todoList = _toDoRepository.GetList(offset, limit, expression, x => x.Id);
-
-            MainToDoDto[] mainTodoList = new MainToDoDto[todoList.Length];
-            for (int i = 0; i < todoList.Length; i++)
+            if (!string.IsNullOrWhiteSpace(labelFreeText))
             {
-                mainTodoList[i] = _mapper.Map<ToDo, MainToDoDto>(todoList[i]);
+                expressions.Add(x => x.Label.Contains(labelFreeText));
             }
-            return mainTodoList;
+
+            if (currentUser.UserRoleId != 1)
+            {
+                expressions.Add(x => x.OwnerId == currentUser.Id);
+            }
+
+            var todoList = await _toDoRepository.GetListAsync(offset, limit, expressions, x => x.Id, false, cancellationToken);
+            return _mapper.Map<IReadOnlyCollection<GetToDoDto>>(todoList);
         }
 
-        public ToDo GetById(int id)
-        {
-            ToDo? todo = _toDoRepository.SingleOrDefault(x=>x.Id == id);
-            if (todo == null)
-            {
-                Log.Error("ToDo not found");
-                throw new NotFoundException($"ToDo with id = {id} not found");
-            }
-
-            return todo;
-        }
-
-        public async Task<MainToDoDto> GetByIdAsync(int id, CancellationToken cancellationToken)
+        public async Task<GetToDoDto> GetByIdAsync(int currentUserId, int id, CancellationToken cancellationToken = default)
         {
             ToDo? todo = await _toDoRepository.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
             if (todo == null)
@@ -87,93 +58,100 @@ namespace Todos.Service
                 throw new NotFoundException($"ToDo with id = {id} not found");
             }
 
-            return _mapper.Map<ToDo, MainToDoDto>(todo);
+            var currentUser = await _userRepository.SingleAsync(u => u.Id == currentUserId, cancellationToken);
+            if (currentUser.UserRoleId != 1 && currentUserId != todo.OwnerId)
+            {
+                throw new ForbiddenException();
+            }
+
+            return _mapper.Map<ToDo, GetToDoDto>(todo);
         }
 
-        public async Task<IsDoneResult> GetIsDoneAsync(int id, CancellationToken cancellationToken)
+        public async Task<IsDoneResult> GetIsDoneAsync(int currentUserId, int id, CancellationToken cancellationToken = default)
         {
-            ToDo? todo = await _toDoRepository.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+            ToDo? todo = await _toDoRepository.SingleOrDefaultAsync(x => x.Id == id, cancellationToken = default);
             if (todo == null)
             {
                 Log.Error($"ToDo with id = {id} not found");
                 throw new NotFoundException($"ToDo with id = {id} not found");
+            }
+
+            var currentUser = await _userRepository.SingleAsync(u => u.Id == currentUserId, cancellationToken);
+            if (currentUser.UserRoleId != 1 && currentUserId != todo.OwnerId)
+            {
+                throw new ForbiddenException();
             }
 
             return new IsDoneResult() { Id = id, IsDone = todo.IsDone };
         }
 
-        public MainToDoDto Create(CreateToDoDto todoDto)
+        public async Task<GetToDoDto> CreateAsync(int currentUserId,CreateToDoDto todoDto, CancellationToken cancellationToken = default)
         {
-            if (_userRepository.SingleOrDefault(x => x.Id == todoDto.OwnerId) == null)
-            {
-                Log.Error($"Owner id {todoDto.OwnerId} does not exist");
-                throw new BadRequestException($"Owner id {todoDto.OwnerId} does not exist");
-            }
-
-            if (string.IsNullOrWhiteSpace(todoDto.Label))
-            {
-                Log.Error("Label must not be empty");
-                throw new BadRequestException("Label must not be empty");
-            }
-
             ToDo newTodo = _mapper.Map<CreateToDoDto, ToDo>(todoDto);
             newTodo.CreatedTime = DateTime.UtcNow;
+            newTodo.OwnerId = currentUserId;
 
-            _toDoRepository.Add(newTodo);
+            await _toDoRepository.AddAsync(newTodo, cancellationToken);
 
-            MainToDoDto newMainToDo = _mapper.Map<ToDo, MainToDoDto>(newTodo);
+            GetToDoDto newMainToDo = _mapper.Map<ToDo, GetToDoDto>(newTodo);
             Log.Information("ToDo added " + JsonSerializer.Serialize(newMainToDo));
             return newMainToDo;
         }
 
-        public MainToDoDto Update(int id, UpdateToDoDto newTodo)
+        public async Task<GetToDoDto> UpdateAsync(int currentUserId, int id, UpdateToDoDto newTodo, CancellationToken cancellationToken = default)
         {
-            if (_userRepository.SingleOrDefault(x => x.Id == newTodo.OwnerId) == null)
+            if (await _userRepository.SingleOrDefaultAsync(x => x.Id == newTodo.OwnerId, cancellationToken) == null)
             {
                 Log.Error($"Owner id {newTodo.OwnerId} does not exist");
                 throw new BadRequestException($"Owner id {newTodo.OwnerId} does not exist");
             }
 
-            if (string.IsNullOrWhiteSpace(newTodo.Label))
-            {
-                Log.Error("Label must not be empty");
-                throw new BadRequestException("Label must not be empty");
-            }
-
-            ToDo? todoForUpdate = _toDoRepository.SingleOrDefault(x=>x.Id == id);
+            ToDo? todoForUpdate = await _toDoRepository.SingleOrDefaultAsync(x=>x.Id == id, cancellationToken);
             if (todoForUpdate == null)
             {
                 Log.Error($"ToDo with id = {id} not found");
                 throw new NotFoundException($"ToDo with id = {id} not found");
             }
 
+            var currentUser = await _userRepository.SingleAsync(u => u.Id == currentUserId, cancellationToken);
+            if (currentUser.UserRoleId != 1 && currentUserId != todoForUpdate.OwnerId)
+            {
+                throw new ForbiddenException();
+            }
+
             _mapper.Map<UpdateToDoDto, ToDo>(newTodo, todoForUpdate);
             todoForUpdate.UpdatedTime = DateTime.UtcNow;
 
-            _toDoRepository.Update(todoForUpdate);
+            await _toDoRepository.UpdateAsync(todoForUpdate, cancellationToken);
 
-            MainToDoDto updatedMainToDo = _mapper.Map<ToDo, MainToDoDto>(todoForUpdate);
+            GetToDoDto updatedMainToDo = _mapper.Map<ToDo, GetToDoDto>(todoForUpdate);
             Log.Information("ToDo updated " + JsonSerializer.Serialize(updatedMainToDo));
             return updatedMainToDo;
         }
 
-        public IsDoneResult Patch(int id, bool isDone)
+        public async Task<IsDoneResult> PatchAsync(int currentUserId, int id, bool isDone, CancellationToken cancellationToken = default)
         {
-            ToDo? todo = _toDoRepository.SingleOrDefault(x=>x.Id == id);
+            ToDo? todo = await _toDoRepository.SingleOrDefaultAsync(x=>x.Id == id, cancellationToken);
             if (todo == null)
             {
                 Log.Error($"ToDo with id = {id} not found");
                 throw new NotFoundException($"ToDo with id = {id} not found");
             }
 
-            todo.IsDone = isDone;
-            _toDoRepository.Update(todo);
+            var currentUser = await _userRepository.SingleAsync(u => u.Id == currentUserId, cancellationToken);
+            if (currentUser.UserRoleId != 1 && currentUserId != todo.OwnerId)
+            {
+                throw new ForbiddenException();
+            }
 
-            Log.Information("ToDo patched " + JsonSerializer.Serialize(_mapper.Map<ToDo,MainToDoDto>(todo)));
+            todo.IsDone = isDone;
+            await _toDoRepository.UpdateAsync(todo, cancellationToken);
+
+            Log.Information("ToDo patched " + JsonSerializer.Serialize(_mapper.Map<ToDo,GetToDoDto>(todo)));
             return new IsDoneResult() {Id = todo.Id, IsDone = todo.IsDone };
         }
 
-        public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken)
+        public async Task<bool> DeleteAsync(int currentUserId, int id, CancellationToken cancellationToken)
         {
             ToDo? todoById = await _toDoRepository.SingleOrDefaultAsync(x=>x.Id == id, cancellationToken);
             if (todoById == null)
@@ -182,14 +160,38 @@ namespace Todos.Service
                 throw new NotFoundException($"ToDo with id = {id} not found");
             }
 
-            _toDoRepository.Delete(todoById);
-            Log.Information("ToDo deleted " + JsonSerializer.Serialize(_mapper.Map<ToDo, MainToDoDto>(todoById)));
+            var currentUser = await _userRepository.SingleAsync(u => u.Id == currentUserId, cancellationToken);
+            if (currentUser.UserRoleId != 1 && currentUserId != todoById.OwnerId)
+            {
+                throw new ForbiddenException();
+            }
+
+            await _toDoRepository.DeleteAsync(todoById, cancellationToken);
+            Log.Information("ToDo deleted " + JsonSerializer.Serialize(_mapper.Map<ToDo, GetToDoDto>(todoById)));
             return true;
         }
 
-        public int GetCount(string? labelFreeText)
+        public async Task<int> GetCountAsync(int currentUserId, int? ownerId, string? labelFreeText, CancellationToken cancellationToken = default)
         {
-             return _toDoRepository.Count(labelFreeText == null ? null : x => x.Label.Contains(labelFreeText));
+            var currentUser = await _userRepository.SingleAsync(u => u.Id == currentUserId, cancellationToken);
+
+            var expressions = new List<Expression<Func<ToDo, bool>>>();
+            if (ownerId != null)
+            {
+                expressions.Add(x => x.OwnerId == ownerId);
+            }
+
+            if (!string.IsNullOrWhiteSpace(labelFreeText))
+            {
+                expressions.Add(x => x.Label.Contains(labelFreeText));
+            }
+
+            if (currentUser.UserRoleId != 1)
+            {
+                expressions.Add(x => x.OwnerId == currentUser.Id);
+            }
+
+            return await _toDoRepository.CountAsync(expressions, cancellationToken);
         }
     }
 }

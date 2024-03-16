@@ -15,7 +15,7 @@ namespace Todos.Service.Mapping
         {
             CreateMap<CreateToDoDto, ToDo>();
             CreateMap<UpdateToDoDto, ToDo>();
-            CreateMap<ToDo, MainToDoDto>();
+            CreateMap<ToDo, GetToDoDto>();
         }
 
     }

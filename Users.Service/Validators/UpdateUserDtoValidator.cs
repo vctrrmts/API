@@ -7,7 +7,7 @@ namespace Users.Service.Validators
     {
         public UpdateUserDtoValidator()
         {
-            RuleFor(x => x.Name).Length(3, 50);
+            RuleFor(x => x.Login).Length(3, 50).NotEmpty();
         }
     }
 }

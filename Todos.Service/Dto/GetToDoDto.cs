@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Todos.Service.Dto
 {
-    public class MainToDoDto
+    public class GetToDoDto
     {
         public int Id { get; set; }
         public string Label { get; set; } = default!;

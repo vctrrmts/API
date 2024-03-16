@@ -7,7 +7,8 @@ namespace Users.Service.Validators
     {
         public CreateUserDtoValidator()
         {
-            RuleFor(x => x.Name).Length(3, 50);
+            RuleFor(x => x.Login).Length(3, 50).NotEmpty();
+            RuleFor(x => x.Password).Length(8,50).NotEmpty();
         }
     }
 }

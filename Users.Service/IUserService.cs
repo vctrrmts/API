@@ -10,11 +10,12 @@ namespace Users.Service
 {
     public interface IUserService
     {
-        IReadOnlyCollection<MainUserDto> GetList(int? offset, string? labelFreeText, int? limit);
-        Task<MainUserDto> GetByIdAsync(int id, CancellationToken cancellationToken);
-        MainUserDto Create(CreateUserDto user);
-        MainUserDto Update(int id, UpdateUserDto user);
-        Task<bool> DeleteAsync(int id, CancellationToken cancellationToken);
-        int GetCount(string? labelFreeText);
+        Task<IReadOnlyCollection<GetUserDto>> GetListAsync(int? offset, string? labelFreeText, int? limit, CancellationToken cancellationToken = default);
+        Task<GetUserDto> GetByIdAsync(int id, CancellationToken cancellationToken = default);
+        Task<GetUserDto> CreateAsync(CreateUserDto user, CancellationToken cancellationToken = default);
+        Task<GetUserDto> UpdateUserAsync(int currentUserId, int id, UpdateUserDto user, CancellationToken cancellationToken = default);
+        Task UpdatePasswordAsync(int currentUserId, int id, string NewPassword, CancellationToken cancellationToken = default);
+        Task DeleteAsync(int currentUserId, int id, CancellationToken cancellationToken = default);
+        Task<int> GetCountAsync(string? labelFreeText, CancellationToken cancellationToken = default);
     }
 }

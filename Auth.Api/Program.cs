@@ -1,16 +1,16 @@
-using Serilog;
-using Serilog.Events;
-using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
-using Todos.Service;
-using Common.Api;
+using AuthService;
 using Common.Repositories;
-using System.Text.Json.Serialization;
-using Microsoft.OpenApi.Models;
+using Common.Api;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using Serilog;
+using Serilog.Events;
 using System.Text;
+using System.Text.Json.Serialization;
+using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 
-namespace API
+namespace Auth.Api
 {
     public class Program
     {
@@ -29,7 +29,7 @@ namespace API
                 builder.Services.AddControllers().AddJsonOptions(x => x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 
                 builder.Services.AddEndpointsApiExplorer();
-                builder.Services.AddToDoServices();
+                builder.Services.AddAuthServices();
                 builder.Services.AddTodosDatabase(builder.Configuration);
 
                 builder.Services.AddAuthorization();
@@ -84,11 +84,11 @@ namespace API
                 builder.Services.AddFluentValidationAutoValidation();
 
                 builder.Host.UseSerilog();
-
                 var app = builder.Build();
 
                 app.UseExceptionsHandler();
 
+                // Configure the HTTP request pipeline.
                 if (app.Environment.IsDevelopment())
                 {
                     app.UseSwagger();
@@ -108,7 +108,7 @@ namespace API
             {
                 Log.Error(ex, "Run Error");
                 throw;
-            } 
+            }
         }
     }
 }

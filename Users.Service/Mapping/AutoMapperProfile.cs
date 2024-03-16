@@ -15,7 +15,7 @@ namespace Users.Service.Mapping
         {
             CreateMap<CreateUserDto, User>();
             CreateMap<UpdateUserDto, User>();
-            CreateMap<User, MainUserDto>();
+            CreateMap<User, GetUserDto>();
         }
 
     }

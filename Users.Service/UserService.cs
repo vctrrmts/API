@@ -2,9 +2,11 @@
 using Common.Domain;
 using Common.Repositories;
 using Common.Api.Exceptions;
+using Common.Api.Utils;
 using Users.Service.Dto;
 using Serilog;
 using System.Text.Json;
+using System.Linq.Expressions;
 
 namespace Users.Service
 {
@@ -16,33 +18,21 @@ namespace Users.Service
         {
             _userRepository = userRepository;
             _mapper = mapper;
-
-            if(_userRepository.GetList().Length == 0)
-            {
-                _userRepository.Add(new User() { Id = 1, Name = "Viktor" });
-                _userRepository.Add(new User() { Id = 2, Name = "Igor" });
-                _userRepository.Add(new User() { Id = 3, Name = "Gennadiy" });
-            }
-
         }
 
-        public IReadOnlyCollection<MainUserDto> GetList(int? offset, string? labelFreeText, int? limit = 5)
+        public async Task<IReadOnlyCollection<GetUserDto>> GetListAsync(int? offset, string? labelFreeText, 
+            int? limit = 5, CancellationToken cancellationToken = default)
         {
-            User[] userList = _userRepository.GetList(offset, 
+            User[] userList = await _userRepository.GetListAsync(offset, 
                 limit, 
-                labelFreeText == null? null : x=>x.Name.Contains(labelFreeText),
-                x=>x.Id);
+                labelFreeText == null? null : new List<Expression<Func<User, bool>>>() { x => x.Login.Contains(labelFreeText) },
+                x=>x.Id, false,
+                cancellationToken);
 
-            MainUserDto[] mainUserList = new MainUserDto[userList.Length];
-            for (int i = 0; i < userList.Length; i++)
-            {
-                mainUserList[i] = _mapper.Map<User, MainUserDto>(userList[i]);
-            }
-
-            return mainUserList;
+            return _mapper.Map<IReadOnlyCollection<GetUserDto>>(userList);
         }
 
-        public async Task<MainUserDto> GetByIdAsync(int id, CancellationToken cancellationToken)
+        public async Task<GetUserDto> GetByIdAsync(int id, CancellationToken cancellationToken)
         {
             User? user = await _userRepository.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
             if (user == null)
@@ -51,33 +41,37 @@ namespace Users.Service
                 throw new NotFoundException($"User with Id = {id} not found");
             }
 
-            return _mapper.Map<User, MainUserDto>(user);
+            return _mapper.Map<User, GetUserDto>(user);
         }
 
-        public MainUserDto Create(CreateUserDto userDto)
+        public async Task<GetUserDto> CreateAsync(CreateUserDto userDto, CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(userDto.Name))
+            if (await _userRepository.SingleOrDefaultAsync(x=>x.Login == userDto.Login.Trim()) is not null)
             {
-                Log.Error("Name must not be empty");
-                throw new Exception("Name must not be empty");
+                throw new BadRequestException("User login exist");
             }
 
-            User newUser = _mapper.Map<CreateUserDto, User>(userDto);
+            var newUser = new User()
+            {
+                Login = userDto.Login.Trim(),
+                PasswordHash = PasswordHashUtil.HashPassword(userDto.Password),
+                UserRoleId = 2
+            };
 
-            _userRepository.Add(newUser);
+            await _userRepository.AddAsync(newUser, cancellationToken);
             Log.Information("User added " + JsonSerializer.Serialize(newUser));
-            return _mapper.Map<User, MainUserDto>(newUser);
+            return _mapper.Map<User, GetUserDto>(newUser);
         }
 
-        public MainUserDto Update(int id, UpdateUserDto userDto)
+        public async Task<GetUserDto> UpdateUserAsync(int currentUserId, int id, UpdateUserDto userDto, CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(userDto.Name))
+            var currentUser = await _userRepository.SingleAsync(u => u.Id == currentUserId, cancellationToken);
+            if (currentUser.UserRoleId != 1 && currentUser.Id != id)
             {
-                Log.Error("Name must not be empty");
-                throw new Exception("Name must not be empty");
+                throw new ForbiddenException();
             }
 
-            User? user = _userRepository.SingleOrDefault(x => x.Id == id);
+            User? user = await _userRepository.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
             if (user == null)
             {
                 Log.Error($"User with Id = {id} not found");
@@ -86,13 +80,40 @@ namespace Users.Service
 
             _mapper.Map<UpdateUserDto, User>(userDto, user);
 
-            _userRepository.Update(user);
+            await _userRepository.UpdateAsync(user, cancellationToken);
             Log.Information("User updated " + JsonSerializer.Serialize(user));
-            return _mapper.Map<User, MainUserDto>(user);
+            return _mapper.Map<User, GetUserDto>(user);
         }
 
-        public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken)
+        public async Task UpdatePasswordAsync(int currentUserId, int id, string newPassword, CancellationToken cancellationToken = default)
         {
+            var currentUser = await _userRepository.SingleAsync(u => u.Id == currentUserId, cancellationToken);
+            if (currentUser.UserRoleId != 1 && currentUser.Id != id)
+            {
+                throw new ForbiddenException();
+            }
+
+            User? user = await _userRepository.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+            if (user == null)
+            {
+                Log.Error($"User with Id = {id} not found");
+                throw new NotFoundException($"User with Id = {id} not found");
+            }
+
+            user.PasswordHash = PasswordHashUtil.HashPassword(newPassword);
+
+            await _userRepository.UpdateAsync(user, cancellationToken);
+            Log.Information("User updated " + JsonSerializer.Serialize(user));
+        }
+
+        public async Task DeleteAsync(int currentUserId, int id, CancellationToken cancellationToken)
+        {
+            var currentUser = await _userRepository.SingleAsync(u => u.Id == currentUserId, cancellationToken);
+            if (currentUser.UserRoleId != 1)
+            {
+                throw new ForbiddenException();
+            }
+
             var user = await _userRepository.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
             if (user == null)
             {
@@ -100,14 +121,19 @@ namespace Users.Service
                 throw new NotFoundException($"User with Id = {id} not found");
             }
 
-            _userRepository.Delete(user);
+            await _userRepository.DeleteAsync(user, cancellationToken);
             Log.Information("User deleted " + JsonSerializer.Serialize(user));
-            return true;
         }
 
-        public int GetCount(string? labelFreeText)
+        public async Task<int> GetCountAsync(string? labelFreeText, CancellationToken cancellationToken = default)
         {
-            return _userRepository.Count(labelFreeText == null ? null : x => x.Name.Contains(labelFreeText));
+            var expressions = new List<Expression<Func<User, bool>>>();
+            if (labelFreeText != null)
+            {
+                expressions.Add(x => x.Login.Contains(labelFreeText));
+            }
+
+            return await _userRepository.CountAsync(expressions, cancellationToken);
         }
     }
 }
