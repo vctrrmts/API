@@ -12,20 +12,28 @@ namespace Users.Service
 {
     public class UserService : IUserService
     {
-        private readonly IRepository<User> _userRepository;
+        private readonly IRepository<ApplicationUser> _userRepository;
+        private readonly IRepository<ApplicationUserRole> _rolesRepository;
+        private readonly IRepository<ApplicationUserApplicationRole> _userRolesRepository;
         private readonly IMapper _mapper;
-        public UserService(IRepository<User> userRepository, IMapper mapper)
+        public UserService(
+            IRepository<ApplicationUser> userRepository, 
+            IRepository<ApplicationUserRole> rolesRepository,
+            IRepository<ApplicationUserApplicationRole> userRoles, 
+            IMapper mapper)
         {
             _userRepository = userRepository;
+            _rolesRepository = rolesRepository;
+            _userRolesRepository = userRoles;
             _mapper = mapper;
         }
 
         public async Task<IReadOnlyCollection<GetUserDto>> GetListAsync(int? offset, string? labelFreeText, 
             int? limit = 5, CancellationToken cancellationToken = default)
         {
-            User[] userList = await _userRepository.GetListAsync(offset, 
+            ApplicationUser[] userList = await _userRepository.GetListAsync(offset, 
                 limit, 
-                labelFreeText == null? null : new List<Expression<Func<User, bool>>>() { x => x.Login.Contains(labelFreeText) },
+                labelFreeText == null? null :  x => x.Login.Contains(labelFreeText),
                 x=>x.Id, false,
                 cancellationToken);
 
@@ -34,14 +42,14 @@ namespace Users.Service
 
         public async Task<GetUserDto> GetByIdAsync(int id, CancellationToken cancellationToken)
         {
-            User? user = await _userRepository.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+            ApplicationUser? user = await _userRepository.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
             if (user == null)
             {
                 Log.Error($"User with Id = {id} not found");
                 throw new NotFoundException($"User with Id = {id} not found");
             }
 
-            return _mapper.Map<User, GetUserDto>(user);
+            return _mapper.Map<ApplicationUser, GetUserDto>(user);
         }
 
         public async Task<GetUserDto> CreateAsync(CreateUserDto userDto, CancellationToken cancellationToken = default)
@@ -51,49 +59,64 @@ namespace Users.Service
                 throw new BadRequestException("User login exist");
             }
 
-            var newUser = new User()
+            var userRole = await _rolesRepository.SingleAsync(r => r.Name == "Client", cancellationToken);
+
+            var newUser = new ApplicationUser()
             {
                 Login = userDto.Login.Trim(),
                 PasswordHash = PasswordHashUtil.HashPassword(userDto.Password),
-                UserRoleId = 2
+                Roles = new[] { new ApplicationUserApplicationRole() { ApplicationUserRoleId = userRole.Id } }
             };
 
             await _userRepository.AddAsync(newUser, cancellationToken);
-            Log.Information("User added " + JsonSerializer.Serialize(newUser));
-            return _mapper.Map<User, GetUserDto>(newUser);
+
+            var getUserDto = _mapper.Map<ApplicationUser, GetUserDto>(newUser);
+            Log.Information("User added " + JsonSerializer.Serialize(getUserDto));
+            return getUserDto;
         }
 
         public async Task<GetUserDto> UpdateUserAsync(int currentUserId, int id, UpdateUserDto userDto, CancellationToken cancellationToken = default)
         {
-            var currentUser = await _userRepository.SingleAsync(u => u.Id == currentUserId, cancellationToken);
-            if (currentUser.UserRoleId != 1 && currentUser.Id != id)
+            var currentUserRoles = await _userRolesRepository.GetListAsync(
+                expression: x => x.ApplicationUserId == currentUserId,
+                cancellationToken: cancellationToken);
+            if (!currentUserRoles.Any(t => t.ApplicationUserRoleId == 1) && currentUserId != id)
             {
                 throw new ForbiddenException();
             }
 
-            User? user = await _userRepository.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+            if (await _userRepository.SingleOrDefaultAsync(x => x.Login == userDto.Login.Trim()) is not null)
+            {
+                throw new BadRequestException("User login exist");
+            }
+
+            ApplicationUser? user = await _userRepository.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
             if (user == null)
             {
                 Log.Error($"User with Id = {id} not found");
                 throw new NotFoundException($"User with Id = {id} not found");
             }
 
-            _mapper.Map<UpdateUserDto, User>(userDto, user);
+            _mapper.Map<UpdateUserDto, ApplicationUser>(userDto, user);
 
             await _userRepository.UpdateAsync(user, cancellationToken);
-            Log.Information("User updated " + JsonSerializer.Serialize(user));
-            return _mapper.Map<User, GetUserDto>(user);
+
+            var getUserDto = _mapper.Map<ApplicationUser, GetUserDto>(user);
+            Log.Information("User updated " + JsonSerializer.Serialize(getUserDto));
+            return getUserDto;
         }
 
         public async Task UpdatePasswordAsync(int currentUserId, int id, string newPassword, CancellationToken cancellationToken = default)
         {
-            var currentUser = await _userRepository.SingleAsync(u => u.Id == currentUserId, cancellationToken);
-            if (currentUser.UserRoleId != 1 && currentUser.Id != id)
+            var currentUserRoles = await _userRolesRepository.GetListAsync(
+                expression: x => x.ApplicationUserId == currentUserId,
+                cancellationToken: cancellationToken);
+            if (!currentUserRoles.Any(t => t.ApplicationUserRoleId == 1) && currentUserId != id)
             {
                 throw new ForbiddenException();
             }
 
-            User? user = await _userRepository.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+            ApplicationUser? user = await _userRepository.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
             if (user == null)
             {
                 Log.Error($"User with Id = {id} not found");
@@ -103,13 +126,15 @@ namespace Users.Service
             user.PasswordHash = PasswordHashUtil.HashPassword(newPassword);
 
             await _userRepository.UpdateAsync(user, cancellationToken);
-            Log.Information("User updated " + JsonSerializer.Serialize(user));
+            Log.Information("User's passord updated. Id user = " + user.Id);
         }
 
         public async Task DeleteAsync(int currentUserId, int id, CancellationToken cancellationToken)
         {
-            var currentUser = await _userRepository.SingleAsync(u => u.Id == currentUserId, cancellationToken);
-            if (currentUser.UserRoleId != 1)
+            var currentUserRoles = await _userRolesRepository.GetListAsync(
+                expression: x => x.ApplicationUserId == currentUserId,
+                cancellationToken: cancellationToken);
+            if (!currentUserRoles.Any(t => t.ApplicationUserRoleId == 1))
             {
                 throw new ForbiddenException();
             }
@@ -127,13 +152,9 @@ namespace Users.Service
 
         public async Task<int> GetCountAsync(string? labelFreeText, CancellationToken cancellationToken = default)
         {
-            var expressions = new List<Expression<Func<User, bool>>>();
-            if (labelFreeText != null)
-            {
-                expressions.Add(x => x.Login.Contains(labelFreeText));
-            }
-
-            return await _userRepository.CountAsync(expressions, cancellationToken);
+            return await _userRepository.CountAsync(
+                t => (string.IsNullOrWhiteSpace(labelFreeText) || t.Login.Contains(labelFreeText, StringComparison.InvariantCultureIgnoreCase)), 
+                cancellationToken);
         }
     }
 }

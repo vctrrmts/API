@@ -10,6 +10,6 @@ namespace Common.Domain
     {
         public string Id { get; set; } = default!;
         public int UserId { get; set; }
-        public User User { get; set; } = default!;
+        public ApplicationUser User { get; set; } = default!;
     }
 }

@@ -15,8 +15,8 @@ namespace AuthService
         public static IServiceCollection AddAuthServices(this IServiceCollection services)
         {
             services.AddTransient<IAuthService, AuthService>();
-            services.AddTransient<IRepository<User>, SqlServerBaseRepository<User>>();
-            services.AddTransient<IRepository<UserRole>, SqlServerBaseRepository<UserRole>>();
+            services.AddTransient<IRepository<ApplicationUser>, SqlServerBaseRepository<ApplicationUser>>();
+            services.AddTransient<IRepository<ApplicationUserRole>, SqlServerBaseRepository<ApplicationUserRole>>();
             services.AddTransient<IRepository<RefreshToken>, SqlServerBaseRepository<RefreshToken>>();
             return services;
         }

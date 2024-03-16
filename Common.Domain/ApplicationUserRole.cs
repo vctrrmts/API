@@ -6,10 +6,10 @@ using System.Threading.Tasks;
 
 namespace Common.Domain
 {
-    public class UserRole
+    public class ApplicationUserRole
     {
         public int Id { get; set; }
         public string Name { get; set; } = default!;
-        public ICollection<User> Users { get; set; } = default!;
+        public IEnumerable<ApplicationUserApplicationRole> Users { get; set; } = default!;
     }
 }

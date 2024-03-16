@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 
 namespace Common.Repositories;
 
@@ -13,17 +14,14 @@ public class SqlServerBaseRepository<TEntity> : IRepository<TEntity> where TEnti
         _applicationDbContext = applicationDbContext;
     }
 
-    public async Task<TEntity[]> GetListAsync(int? offset = null, int? limit = null, List<Expression<Func<TEntity, bool>>>? predicates = null, 
+    public async Task<TEntity[]> GetListAsync(int? offset = null, int? limit = null, Expression<Func<TEntity, bool>>? predicate = null, 
         Expression<Func<TEntity, object>>? orderBy = null, bool? descending = null, CancellationToken cancellationToken = default)
     {
         var queryable = _applicationDbContext.Set<TEntity>().AsQueryable();
 
-        if (predicates is not null)
+        if (predicate is not null)
         {
-            foreach (var expression in predicates)
-            {
-                queryable = queryable.Where(expression);
-            }
+            queryable = queryable.Where(predicate);
         }
 
         if (orderBy is not null)
@@ -56,17 +54,15 @@ public class SqlServerBaseRepository<TEntity> : IRepository<TEntity> where TEnti
         return predicate == null ? await set.SingleAsync(cancellationToken) : await set.SingleAsync(predicate, cancellationToken);
     }
 
-    public async Task<int> CountAsync(List<Expression<Func<TEntity, bool>>>? predicates = null, CancellationToken cancellationToken = default)
+    public async Task<int> CountAsync(Expression<Func<TEntity, bool>>? predicate = null, CancellationToken cancellationToken = default)
     {
         var queryable = _applicationDbContext.Set<TEntity>().AsQueryable();
 
-        if (predicates is not null)
+        if (predicate is not null)
         {
-            foreach (var expression in predicates)
-            {
-                queryable = queryable.Where(expression);
-            }
+            queryable = queryable.Where(predicate);
         }
+
         return  await queryable.CountAsync(cancellationToken);
     }
 

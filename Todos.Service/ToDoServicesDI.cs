@@ -14,7 +14,8 @@ namespace Todos.Service
             services.AddAutoMapper(typeof(AutoMapperProfile));
             services.AddTransient<IToDoService, ToDoService>();
             services.AddTransient<IRepository<ToDo>, SqlServerBaseRepository<ToDo>>();
-            services.AddTransient<IRepository<User>, SqlServerBaseRepository<User>>();
+            services.AddTransient<IRepository<ApplicationUser>, SqlServerBaseRepository<ApplicationUser>>();
+            services.AddTransient<IRepository<ApplicationUserApplicationRole>, SqlServerBaseRepository<ApplicationUserApplicationRole>>();
             services.AddValidatorsFromAssemblies(new[] { Assembly.GetExecutingAssembly() }, includeInternalTypes: true);
 
             return services;

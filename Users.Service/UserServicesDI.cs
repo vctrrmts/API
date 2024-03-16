@@ -13,7 +13,9 @@ namespace Users.Service
         {
             services.AddAutoMapper(typeof(AutoMapperProfile));
             services.AddTransient<IUserService, UserService>();
-            services.AddTransient<IRepository<User>, SqlServerBaseRepository<User>>();
+            services.AddTransient<IRepository<ApplicationUser>, SqlServerBaseRepository<ApplicationUser>>();
+            services.AddTransient<IRepository<ApplicationUserRole>, SqlServerBaseRepository<ApplicationUserRole>>();
+            services.AddTransient<IRepository<ApplicationUserApplicationRole>, SqlServerBaseRepository<ApplicationUserApplicationRole>>();
             services.AddValidatorsFromAssemblies(new[] { Assembly.GetExecutingAssembly() }, includeInternalTypes: true);
 
             return services;

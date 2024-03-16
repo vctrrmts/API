@@ -15,6 +15,6 @@ namespace Common.Domain
         public bool IsDone { get; set; }
         public DateTime CreatedTime { get; set; } 
         public DateTime? UpdatedTime { get; set; }
-        public virtual User User { get; set; }
+        public virtual ApplicationUser User { get; set; }
     }
 }

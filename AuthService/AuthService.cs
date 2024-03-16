@@ -18,14 +18,14 @@ namespace AuthService
 {
     public class AuthService : IAuthService
     {
-        private readonly IRepository<User> _userRepository;
-        private readonly IRepository<UserRole> _userRoleRepository;
+        private readonly IRepository<ApplicationUser> _userRepository;
+        private readonly IRepository<ApplicationUserRole> _userRoleRepository;
         private readonly IRepository<RefreshToken> _refreshTokenRepository;
         private readonly IConfiguration _configuration;
 
         public AuthService(
-            IRepository<User> userRepository, 
-            IRepository<UserRole> userRoleRepository,
+            IRepository<ApplicationUser> userRepository, 
+            IRepository<ApplicationUserRole> userRoleRepository,
             IRepository<RefreshToken> refreshTokenRepository,
             IConfiguration configuration)
         {
@@ -48,14 +48,16 @@ namespace AuthService
                 throw new ForbiddenException(); 
             }
 
-            var role = await _userRoleRepository.SingleAsync(r => r.Id == user.UserRoleId, cancellationToken);
-
             var claims = new List<Claim>
             {
                 new (ClaimTypes.Name, authDto.Login ),
                 new (ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new (ClaimTypes.Role, role.Name)
             };
+
+            foreach (var role in user.Roles) 
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role.ApplicationUserRole.Name));
+            }
 
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256Signature);
@@ -82,14 +84,17 @@ namespace AuthService
             }
 
             var user = await _userRepository.SingleAsync(x => x.Id == refreshTokenFromDB.UserId, cancellationToken);
-            var role = await _userRoleRepository.SingleAsync(r => r.Id == user.UserRoleId, cancellationToken);
 
             var claims = new List<Claim>
             {
                 new (ClaimTypes.Name, user.Login),
                 new (ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new (ClaimTypes.Role, role.Name)
             };
+
+            foreach (var role in user.Roles)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role.ApplicationUserRole.Name));
+            }
 
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256Signature);

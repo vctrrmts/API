@@ -13,39 +13,37 @@ namespace Todos.Service
     public class ToDoService : IToDoService
     {
         private readonly IRepository<ToDo> _toDoRepository;
-        private readonly IRepository<User> _userRepository;
+        private readonly IRepository<ApplicationUserApplicationRole> _rolesRepository;
         private readonly IMapper _mapper;
 
-
-        public ToDoService(IRepository<ToDo> toDoRepository, IRepository<User> userRepository, IMapper mapper)
+        public ToDoService(
+            IRepository<ToDo> toDoRepository, 
+            IRepository<ApplicationUserApplicationRole> userRoleRepository,
+            IMapper mapper)
         {
             _toDoRepository = toDoRepository;
-            _userRepository = userRepository;
+            _rolesRepository = userRoleRepository;
             _mapper = mapper;
         }
 
         public async Task<IReadOnlyCollection<GetToDoDto>> GetListAsync(int currentUserId, int? offset, int? ownerId, 
             string? labelFreeText, int? limit = 10, CancellationToken cancellationToken = default)
         {
-            var currentUser = await _userRepository.SingleAsync(u => u.Id == currentUserId, cancellationToken);
+            var currentUserRoles = await _rolesRepository.GetListAsync(
+                expression: x => x.ApplicationUserId == currentUserId,
+                cancellationToken: cancellationToken);
 
-            var expressions = new List<Expression<Func<ToDo, bool>>>();
-            if (ownerId != null)
-            {
-                expressions.Add(x => x.OwnerId == ownerId);
-            }
+            bool isCurrentUserAdmin = currentUserRoles.Any(t => t.ApplicationUserRoleId == 1);
 
-            if (!string.IsNullOrWhiteSpace(labelFreeText))
-            {
-                expressions.Add(x => x.Label.Contains(labelFreeText));
-            }
-
-            if (currentUser.UserRoleId != 1)
-            {
-                expressions.Add(x => x.OwnerId == currentUser.Id);
-            }
-
-            var todoList = await _toDoRepository.GetListAsync(offset, limit, expressions, x => x.Id, false, cancellationToken);
+            var todoList = await _toDoRepository.GetListAsync(
+                offset, 
+                limit,
+                t => (string.IsNullOrWhiteSpace(labelFreeText) || t.Label.Contains(labelFreeText, StringComparison.InvariantCultureIgnoreCase)) 
+                && (ownerId == null || t.OwnerId == ownerId)
+                && (isCurrentUserAdmin || t.OwnerId == currentUserId),
+                x => x.Id, 
+                false, 
+                cancellationToken);
             return _mapper.Map<IReadOnlyCollection<GetToDoDto>>(todoList);
         }
 
@@ -58,8 +56,10 @@ namespace Todos.Service
                 throw new NotFoundException($"ToDo with id = {id} not found");
             }
 
-            var currentUser = await _userRepository.SingleAsync(u => u.Id == currentUserId, cancellationToken);
-            if (currentUser.UserRoleId != 1 && currentUserId != todo.OwnerId)
+            var currentUserRoles = await _rolesRepository.GetListAsync(
+                expression: x => x.ApplicationUserId == currentUserId,
+                cancellationToken: cancellationToken);
+            if (!currentUserRoles.Any(t => t.ApplicationUserRoleId == 1) && currentUserId != todo.OwnerId)
             {
                 throw new ForbiddenException();
             }
@@ -76,8 +76,10 @@ namespace Todos.Service
                 throw new NotFoundException($"ToDo with id = {id} not found");
             }
 
-            var currentUser = await _userRepository.SingleAsync(u => u.Id == currentUserId, cancellationToken);
-            if (currentUser.UserRoleId != 1 && currentUserId != todo.OwnerId)
+            var currentUserRoles = await _rolesRepository.GetListAsync(
+                expression: x => x.ApplicationUserId == currentUserId,
+                cancellationToken: cancellationToken);
+            if (!currentUserRoles.Any(t => t.ApplicationUserRoleId == 1) && currentUserId != todo.OwnerId)
             {
                 throw new ForbiddenException();
             }
@@ -100,12 +102,6 @@ namespace Todos.Service
 
         public async Task<GetToDoDto> UpdateAsync(int currentUserId, int id, UpdateToDoDto newTodo, CancellationToken cancellationToken = default)
         {
-            if (await _userRepository.SingleOrDefaultAsync(x => x.Id == newTodo.OwnerId, cancellationToken) == null)
-            {
-                Log.Error($"Owner id {newTodo.OwnerId} does not exist");
-                throw new BadRequestException($"Owner id {newTodo.OwnerId} does not exist");
-            }
-
             ToDo? todoForUpdate = await _toDoRepository.SingleOrDefaultAsync(x=>x.Id == id, cancellationToken);
             if (todoForUpdate == null)
             {
@@ -113,8 +109,10 @@ namespace Todos.Service
                 throw new NotFoundException($"ToDo with id = {id} not found");
             }
 
-            var currentUser = await _userRepository.SingleAsync(u => u.Id == currentUserId, cancellationToken);
-            if (currentUser.UserRoleId != 1 && currentUserId != todoForUpdate.OwnerId)
+            var currentUserRoles = await _rolesRepository.GetListAsync(
+                expression: x => x.ApplicationUserId == currentUserId,
+                cancellationToken: cancellationToken);
+            if (!currentUserRoles.Any(t => t.ApplicationUserRoleId == 1) && currentUserId != todoForUpdate.OwnerId)
             {
                 throw new ForbiddenException();
             }
@@ -138,8 +136,10 @@ namespace Todos.Service
                 throw new NotFoundException($"ToDo with id = {id} not found");
             }
 
-            var currentUser = await _userRepository.SingleAsync(u => u.Id == currentUserId, cancellationToken);
-            if (currentUser.UserRoleId != 1 && currentUserId != todo.OwnerId)
+            var currentUserRoles = await _rolesRepository.GetListAsync(
+                expression: x => x.ApplicationUserId == currentUserId,
+                cancellationToken: cancellationToken);
+            if (!currentUserRoles.Any(t => t.ApplicationUserRoleId == 1) && currentUserId != todo.OwnerId)
             {
                 throw new ForbiddenException();
             }
@@ -160,8 +160,10 @@ namespace Todos.Service
                 throw new NotFoundException($"ToDo with id = {id} not found");
             }
 
-            var currentUser = await _userRepository.SingleAsync(u => u.Id == currentUserId, cancellationToken);
-            if (currentUser.UserRoleId != 1 && currentUserId != todoById.OwnerId)
+            var currentUserRoles = await _rolesRepository.GetListAsync(
+                expression: x => x.ApplicationUserId == currentUserId,
+                cancellationToken: cancellationToken);
+            if (!currentUserRoles.Any(t => t.ApplicationUserRoleId == 1) && currentUserId != todoById.OwnerId)
             {
                 throw new ForbiddenException();
             }
@@ -173,25 +175,16 @@ namespace Todos.Service
 
         public async Task<int> GetCountAsync(int currentUserId, int? ownerId, string? labelFreeText, CancellationToken cancellationToken = default)
         {
-            var currentUser = await _userRepository.SingleAsync(u => u.Id == currentUserId, cancellationToken);
+            var currentUserRoles = await _rolesRepository.GetListAsync(
+                expression: x => x.ApplicationUserId == currentUserId,
+                cancellationToken: cancellationToken);
 
-            var expressions = new List<Expression<Func<ToDo, bool>>>();
-            if (ownerId != null)
-            {
-                expressions.Add(x => x.OwnerId == ownerId);
-            }
+            bool isCurrentUserAdmin = currentUserRoles.Any(t => t.ApplicationUserRoleId == 1);
 
-            if (!string.IsNullOrWhiteSpace(labelFreeText))
-            {
-                expressions.Add(x => x.Label.Contains(labelFreeText));
-            }
-
-            if (currentUser.UserRoleId != 1)
-            {
-                expressions.Add(x => x.OwnerId == currentUser.Id);
-            }
-
-            return await _toDoRepository.CountAsync(expressions, cancellationToken);
+            return await _toDoRepository.CountAsync(
+                t => (string.IsNullOrWhiteSpace(labelFreeText) || t.Label.Contains(labelFreeText, StringComparison.InvariantCultureIgnoreCase))
+                && (ownerId == null || t.OwnerId == ownerId)
+                && (isCurrentUserAdmin || t.OwnerId == currentUserId), cancellationToken);
         }
     }
 }
