@@ -38,7 +38,7 @@ namespace Todos.Service
             var todoList = await _toDoRepository.GetListAsync(
                 offset, 
                 limit,
-                t => (string.IsNullOrWhiteSpace(labelFreeText) || t.Label.Contains(labelFreeText, StringComparison.InvariantCultureIgnoreCase)) 
+                t => (string.IsNullOrWhiteSpace(labelFreeText) || t.Label.Contains(labelFreeText)) 
                 && (ownerId == null || t.OwnerId == ownerId)
                 && (isCurrentUserAdmin || t.OwnerId == currentUserId),
                 x => x.Id, 
@@ -182,7 +182,7 @@ namespace Todos.Service
             bool isCurrentUserAdmin = currentUserRoles.Any(t => t.ApplicationUserRole.Name == "Admin");
 
             return await _toDoRepository.CountAsync(
-                t => (string.IsNullOrWhiteSpace(labelFreeText) || t.Label.Contains(labelFreeText, StringComparison.InvariantCultureIgnoreCase))
+                t => (string.IsNullOrWhiteSpace(labelFreeText) || t.Label.Contains(labelFreeText))
                 && (ownerId == null || t.OwnerId == ownerId)
                 && (isCurrentUserAdmin || t.OwnerId == currentUserId), cancellationToken);
         }

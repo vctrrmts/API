@@ -153,7 +153,7 @@ namespace Users.Service
         public async Task<int> GetCountAsync(string? labelFreeText, CancellationToken cancellationToken = default)
         {
             return await _userRepository.CountAsync(
-                t => (string.IsNullOrWhiteSpace(labelFreeText) || t.Login.Contains(labelFreeText, StringComparison.InvariantCultureIgnoreCase)), 
+                t => (string.IsNullOrWhiteSpace(labelFreeText) || t.Login.Contains(labelFreeText)), 
                 cancellationToken);
         }
     }
