@@ -1,12 +1,8 @@
 ﻿using Common.Domain;
 using Common.Repositories;
+using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AuthService
 {
@@ -18,6 +14,7 @@ namespace AuthService
             services.AddTransient<IRepository<ApplicationUser>, SqlServerBaseRepository<ApplicationUser>>();
             services.AddTransient<IRepository<ApplicationUserRole>, SqlServerBaseRepository<ApplicationUserRole>>();
             services.AddTransient<IRepository<RefreshToken>, SqlServerBaseRepository<RefreshToken>>();
+            services.AddValidatorsFromAssemblies(new[] { Assembly.GetExecutingAssembly() }, includeInternalTypes: true);
             return services;
         }
     }
