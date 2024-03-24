@@ -1,7 +1,7 @@
 ﻿using System.Net;
-using System.Net.Http;
 using System.Text.Json;
-using Common.Api.Exceptions;
+using Common.Application.Exceptions;
+using FluentValidation;
 using Microsoft.AspNetCore.Http;
 
 namespace Common.Api;
@@ -35,6 +35,10 @@ public class ExceptionsHandlerMiddleware
                 case BadRequestException badRequestException:
                     statusCode = HttpStatusCode.BadRequest;
                     result = JsonSerializer.Serialize(badRequestException.Message);
+                    break;
+                case ValidationException validationException:
+                    statusCode = HttpStatusCode.BadRequest;
+                    result = JsonSerializer.Serialize(validationException.Message);
                     break;
                 case ForbiddenException forbiddenException:
                     statusCode = HttpStatusCode.Forbidden;

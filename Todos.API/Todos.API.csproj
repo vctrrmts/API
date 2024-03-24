@@ -22,8 +22,12 @@
   <ItemGroup>
     <ProjectReference Include="..\Common.Api\Common.Api.csproj" />
     <ProjectReference Include="..\Common.Domain\Common.Domain.csproj" />
-    <ProjectReference Include="..\Common.Repositories\Common.Repositories.csproj" />
-    <ProjectReference Include="..\Todos.Service\Todos.Service.csproj" />
+    <ProjectReference Include="..\Common.Persistence\Common.Persistence.csproj" />
+    <ProjectReference Include="..\Todos.Application\Todos.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Logs\" />
   </ItemGroup>
 
 </Project>

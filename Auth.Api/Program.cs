@@ -1,5 +1,3 @@
-using AuthService;
-using Common.Repositories;
 using Common.Api;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -8,7 +6,9 @@ using Serilog;
 using Serilog.Events;
 using System.Text;
 using System.Text.Json.Serialization;
-using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
+using Auth.Application;
+using Common.Persistence;
+using Common.Application;
 
 namespace Auth.Api
 {
@@ -29,7 +29,10 @@ namespace Auth.Api
                 builder.Services.AddControllers().AddJsonOptions(x => x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 
                 builder.Services.AddEndpointsApiExplorer();
-                builder.Services.AddAuthServices();
+
+                builder.Services.AddAuthApplication();
+                builder.Services.AddCommonApplication();
+
                 builder.Services.AddTodosDatabase(builder.Configuration);
 
                 builder.Services.AddAuthorization();
@@ -80,8 +83,6 @@ namespace Auth.Api
                         }
                     });
                 });
-
-                builder.Services.AddFluentValidationAutoValidation();
 
                 builder.Host.UseSerilog();
                 var app = builder.Build();

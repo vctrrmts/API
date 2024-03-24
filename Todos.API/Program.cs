@@ -1,14 +1,16 @@
 using Serilog;
 using Serilog.Events;
-using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
-using Todos.Service;
 using Common.Api;
-using Common.Repositories;
 using System.Text.Json.Serialization;
 using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Todos.Application;
+using Common.Application.Abstractions;
+using Common.Api.Services;
+using Common.Persistence;
+using Common.Application;
 
 namespace API
 {
@@ -29,8 +31,12 @@ namespace API
                 builder.Services.AddControllers().AddJsonOptions(x => x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 
                 builder.Services.AddEndpointsApiExplorer();
-                builder.Services.AddToDoServices();
+
+                builder.Services.AddTodosApplication();
+                builder.Services.AddCommonApplication();
+
                 builder.Services.AddTodosDatabase(builder.Configuration);
+                builder.Services.AddMemoryCache();
 
                 builder.Services.AddAuthorization();
                 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -81,7 +87,8 @@ namespace API
                     });
                 });
 
-                builder.Services.AddFluentValidationAutoValidation();
+                builder.Services.AddTransient<ICurrentUserService, CurrentUserService>();
+                builder.Services.AddHttpContextAccessor();
 
                 builder.Host.UseSerilog();
 

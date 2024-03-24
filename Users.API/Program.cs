@@ -1,14 +1,16 @@
 using Serilog;
 using Serilog.Events;
-using Users.Service;
-using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
-using Common.Repositories;
 using Common.Api;
 using System.Text.Json.Serialization;
 using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Common.Api.Services;
+using Users.Application;
+using Common.Application.Abstractions;
+using Common.Persistence;
+using Common.Application;
 
 namespace Users.API
 {
@@ -30,8 +32,12 @@ namespace Users.API
                 builder.Services.AddControllers().AddJsonOptions(x => x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 
                 builder.Services.AddEndpointsApiExplorer();
-                builder.Services.AddUserServices();
+
+                builder.Services.AddUserApplication();
+                builder.Services.AddCommonApplication();
+
                 builder.Services.AddTodosDatabase(builder.Configuration);
+                builder.Services.AddMemoryCache();
 
                 builder.Services.AddAuthorization();
                 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -82,7 +88,8 @@ namespace Users.API
                     });
                 });
 
-                builder.Services.AddFluentValidationAutoValidation();
+                builder.Services.AddTransient<ICurrentUserService, CurrentUserService>();
+                builder.Services.AddHttpContextAccessor();
 
                 builder.Host.UseSerilog();
 
